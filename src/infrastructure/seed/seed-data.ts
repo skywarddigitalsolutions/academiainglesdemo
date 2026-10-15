@@ -1,3 +1,4 @@
+import { DEMO_PASSWORD } from "@/application/demo-constants";
 import type { Course } from "@/domain/course";
 import type { ConceptualGrade, GradeValue, GradingType } from "@/domain/grading";
 import {
@@ -20,7 +21,7 @@ export interface SeedData {
   reportCards: ReportCard[];
 }
 
-export const DEMO_PASSWORD = "demo123";
+export { DEMO_PASSWORD };
 
 function user(
   id: string,
