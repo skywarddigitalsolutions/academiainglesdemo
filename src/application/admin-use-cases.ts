@@ -71,11 +71,6 @@ export interface ParentListItem {
 export function createAdminUseCases(deps: UseCaseDeps) {
   const { courses, students, users, reportCards } = deps.repositories;
 
-  async function teachersOf(course: Course): Promise<User[]> {
-    const all = await users.listByRole("teacher");
-    return all.filter((t) => course.teacherIds.includes(t.id));
-  }
-
   async function listPendingApprovals(): Promise<PendingApproval[]> {
     const [allStudents, allCourses, teachers] = await Promise.all([
       students.list(),
