@@ -5,7 +5,7 @@ import { cn } from "@/lib/utils";
 import { Crest } from "./crest";
 
 /**
- * Shows `public/logo.png` when it exists; otherwise the SVG crest placeholder.
+ * Shows `public/logo.png` when it exists; otherwise the monochrome crest.
  * The crest is rendered first, so there is never a broken image.
  */
 export function BrandLogo({ className }: { className?: string }) {
@@ -18,7 +18,7 @@ export function BrandLogo({ className }: { className?: string }) {
       <img
         src="/logo.png"
         alt="Logo del Instituto Inmaculada Concepción"
-        className={cn("h-12 w-auto object-contain", className, !hasLogo && "hidden")}
+        className={cn("h-8 w-auto object-contain", className, !hasLogo && "hidden")}
         onLoad={() => setHasLogo(true)}
         onError={() => setHasLogo(false)}
       />

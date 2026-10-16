@@ -13,10 +13,10 @@ export function LoadingState({
       role="status"
       className={cn(
         "flex items-center justify-center gap-2 py-16 text-sm text-muted-foreground",
-        fullScreen && "min-h-[60vh]",
+        fullScreen && "min-h-screen bg-background",
       )}
     >
-      <Loader2 className="size-5 animate-spin text-celeste-strong" aria-hidden />
+      <Loader2 className="size-4 animate-spin" aria-hidden />
       <span>{label}</span>
     </div>
   );

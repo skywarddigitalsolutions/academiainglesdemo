@@ -5,11 +5,10 @@
 @custom-variant dark (&:is(.dark *));
 
 @theme inline {
+  --font-sans: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
+
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: var(--font-body);
-  --font-heading: var(--font-display);
-  --font-serif: var(--font-display);
   --color-ring: var(--ring);
   --color-input: var(--input);
   --color-border: var(--border);
@@ -27,17 +26,24 @@
   --color-card-foreground: var(--card-foreground);
   --color-card: var(--card);
 
-  /* Brand tokens */
-  --color-navy: var(--brand-navy);
-  --color-navy-soft: var(--brand-navy-soft);
-  --color-celeste: var(--brand-celeste);
-  --color-celeste-light: var(--brand-celeste-light);
-  --color-celeste-strong: var(--brand-celeste-strong);
-  --color-gold: var(--brand-gold);
-  --color-success: var(--status-success);
-  --color-success-bg: var(--status-success-bg);
-  --color-warning: var(--status-warning);
-  --color-warning-bg: var(--status-warning-bg);
+  /* Sidebar */
+  --color-sidebar: var(--sidebar);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar-muted: var(--sidebar-muted);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-border: var(--sidebar-border);
+
+  /* Semantic status tones (soft, only for badges and hints) */
+  --color-success: var(--success);
+  --color-success-soft: var(--success-soft);
+  --color-success-border: var(--success-border);
+  --color-warning: var(--warning);
+  --color-warning-soft: var(--warning-soft);
+  --color-warning-border: var(--warning-border);
+  --color-danger: var(--danger);
+  --color-danger-soft: var(--danger-soft);
+  --color-danger-border: var(--danger-border);
 
   --radius-sm: calc(var(--radius) * 0.6);
   --radius-md: calc(var(--radius) * 0.8);
@@ -49,57 +55,65 @@
 }
 
 :root {
-  /* Brand palette */
-  --brand-navy: #001d39;
-  --brand-navy-soft: #0b2f52;
-  --brand-celeste: #6ec1e4;
-  --brand-celeste-light: #eaf6fb;
-  /* Darker celeste: passes WCAG AA as text on white (5.7:1) and with white text. */
-  --brand-celeste-strong: #1a6e95;
-  --brand-gold: #c9a227;
-
-  --status-success: #05603a;
-  --status-success-bg: #e7f6ec;
-  --status-warning: #93370d;
-  --status-warning-bg: #fff4e0;
-
-  /* shadcn semantic tokens */
-  --background: #f6f8fa;
-  --foreground: #1c2733;
+  /* Neutral surfaces (slate) */
+  --background: #f8fafc;
+  --foreground: #0f172a;
   --card: #ffffff;
-  --card-foreground: #1c2733;
+  --card-foreground: #0f172a;
   --popover: #ffffff;
-  --popover-foreground: #1c2733;
-  /* Celeste buttons always use navy text (contrast 8.9:1). */
-  --primary: var(--brand-celeste);
-  --primary-foreground: var(--brand-navy);
-  --secondary: var(--brand-celeste-light);
-  --secondary-foreground: var(--brand-navy);
-  --muted: #eef2f5;
-  --muted-foreground: #4f5b69;
-  --accent: var(--brand-celeste-light);
-  --accent-foreground: var(--brand-navy);
-  --destructive: #b42318;
-  --border: #dde4ea;
-  --input: #cfd8e0;
-  --ring: var(--brand-celeste-strong);
-  --radius: 0.625rem;
+  --popover-foreground: #0f172a;
+
+  /* The only strong color: blue-800 */
+  --primary: #1e40af;
+  --primary-foreground: #ffffff;
+
+  --secondary: #f1f5f9;
+  --secondary-foreground: #0f172a;
+  --muted: #f1f5f9;
+  --muted-foreground: #64748b;
+  --accent: #f1f5f9;
+  --accent-foreground: #0f172a;
+  --destructive: #b91c1c;
+  --border: #e2e8f0;
+  --input: #cbd5e1;
+  --ring: #1e40af;
+  --radius: 0.5rem;
+
+  /* Sidebar (slate-900) */
+  --sidebar: #0f172a;
+  --sidebar-foreground: #cbd5e1;
+  --sidebar-muted: #94a3b8;
+  --sidebar-accent: #1e293b;
+  --sidebar-accent-foreground: #ffffff;
+  --sidebar-border: #1e293b;
+
+  /* Status tones */
+  --success: #15803d;
+  --success-soft: #f0fdf4;
+  --success-border: #bbf7d0;
+  --warning: #b45309;
+  --warning-soft: #fffbeb;
+  --warning-border: #fde68a;
+  --danger: #b91c1c;
+  --danger-soft: #fef2f2;
+  --danger-border: #fecaca;
 }
 
 @layer base {
   * {
     @apply border-border outline-ring/50;
   }
-  body {
-    @apply bg-background text-foreground;
-  }
   html {
     @apply font-sans;
+    font-feature-settings: "cv11", "ss01";
+  }
+  body {
+    @apply bg-background text-foreground;
   }
   h1,
   h2,
   h3 {
-    @apply font-heading text-navy;
+    @apply tracking-tight text-foreground;
   }
 }
 

@@ -1,17 +1,11 @@
 import type { Metadata, Viewport } from "next";
-import { Montserrat, Playfair_Display } from "next/font/google";
+import { Inter } from "next/font/google";
 import { Toaster } from "@/components/ui/sonner";
 import { AppProviders } from "@/providers/app-providers";
 import "./globals.css";
 
-const display = Playfair_Display({
-  variable: "--font-display",
-  subsets: ["latin"],
-  weight: ["500", "600", "700"],
-});
-
-const body = Montserrat({
-  variable: "--font-body",
+const inter = Inter({
+  variable: "--font-inter",
   subsets: ["latin"],
 });
 
@@ -25,15 +19,12 @@ export const metadata: Metadata = {
 };
 
 export const viewport: Viewport = {
-  themeColor: "#001d39",
+  themeColor: "#0f172a",
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
-    <html
-      lang="es"
-      className={`${display.variable} ${body.variable} h-full antialiased`}
-    >
+    <html lang="es" className={`${inter.variable} h-full antialiased`}>
       <body className="flex min-h-full flex-col">
         <AppProviders>{children}</AppProviders>
         <Toaster position="top-center" richColors closeButton />
