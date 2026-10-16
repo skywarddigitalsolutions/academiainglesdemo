@@ -2,9 +2,9 @@
 
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { useState, type ReactNode } from "react";
+import { Suspense, useState, type ComponentProps, type ReactNode } from "react";
 import { LogOut, Menu, PanelLeft, type LucideIcon } from "lucide-react";
-import { BrandLogo } from "@/components/brand/brand-logo";
+import { LogoCrest } from "@/components/brand/logo";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet";
 import { ROLE_LABELS, type Role } from "@/domain/user";
@@ -54,7 +54,7 @@ export function AppShell({
             collapsed ? "w-16" : "w-64",
           )}
         >
-          <SidebarBody role={role} nav={nav} collapsed={collapsed} />
+          <Sidebar role={role} nav={nav} collapsed={collapsed} />
         </aside>
 
         {/* Mobile drawer */}
@@ -65,7 +65,7 @@ export function AppShell({
             className="border-none bg-sidebar p-0 text-sidebar-foreground [&>button]:text-white"
           >
             <SheetTitle className="sr-only">Menú</SheetTitle>
-            <SidebarBody role={role} nav={nav} onNavigate={() => setMobileOpen(false)} />
+            <Sidebar role={role} nav={nav} onNavigate={() => setMobileOpen(false)} />
           </SheetContent>
         </Sheet>
 
@@ -75,7 +75,7 @@ export function AppShell({
             collapsed ? "md:pl-16" : "md:pl-64",
           )}
         >
-          <header className="sticky top-0 z-30 flex h-14 items-center gap-2 border-b bg-card/90 px-4 backdrop-blur sm:px-6 print:hidden">
+          <header className="sticky top-0 z-30 flex h-14 items-center gap-2 border-b border-slate-200/80 bg-white/85 px-4 backdrop-blur-md sm:px-6 print:hidden">
             <Button
               variant="ghost"
               size="icon"
@@ -98,7 +98,7 @@ export function AppShell({
             <span className="mr-1 hidden h-5 w-px bg-border md:block" aria-hidden />
             <Breadcrumbs />
           </header>
-          <main className="mx-auto w-full max-w-6xl flex-1 px-4 py-8 sm:px-6 lg:px-8 print:max-w-none print:p-0">
+          <main className="mx-auto w-full max-w-7xl flex-1 px-4 pt-8 pb-16 sm:px-6 lg:px-10 print:max-w-none print:p-0">
             {children}
           </main>
         </div>
@@ -107,18 +107,37 @@ export function AppShell({
   );
 }
 
+type SidebarProps = Omit<ComponentProps<typeof SidebarBody>, "pathname">;
+
+/*
+ * The pathname is URL data: reading it outside <Suspense> blocks prerendering
+ * of dynamic routes. The fallback renders the same sidebar without highlight.
+ */
+function Sidebar(props: SidebarProps) {
+  return (
+    <Suspense fallback={<SidebarBody {...props} pathname="" />}>
+      <SidebarWithPath {...props} />
+    </Suspense>
+  );
+}
+
+function SidebarWithPath(props: SidebarProps) {
+  return <SidebarBody {...props} pathname={usePathname()} />;
+}
+
 function SidebarBody({
   role,
   nav,
+  pathname,
   collapsed = false,
   onNavigate,
 }: {
   role: Role;
   nav: NavItem[];
+  pathname: string;
   collapsed?: boolean;
   onNavigate?: () => void;
 }) {
-  const pathname = usePathname();
   const router = useRouter();
   const { state, logout } = useSession();
   const name = state.status === "authenticated" ? state.session.displayName : "";
@@ -141,20 +160,27 @@ function SidebarBody({
         href={home}
         onClick={onNavigate}
         className={cn(
-          "flex h-14 shrink-0 items-center gap-3 border-b border-sidebar-border text-white",
+          "relative flex h-16 shrink-0 items-center gap-3 text-white focus-visible:outline-none",
           collapsed ? "justify-center px-2" : "px-5",
         )}
       >
-        <BrandLogo className="h-7 shrink-0" />
+        <LogoCrest className="h-9 shrink-0" />
         {!collapsed && (
           <span className="min-w-0 leading-tight">
-            <span className="block truncate text-sm font-semibold">Inmaculada Concepción</span>
-            <span className="block truncate text-xs text-sidebar-muted">Boletín en línea</span>
+            <span className="block truncate text-[13px] font-semibold tracking-[-0.01em]">
+              Inmaculada Concepción
+            </span>
+            <span className="block truncate text-xs text-sidebar-muted">Boletín digital</span>
           </span>
         )}
+        {/* Hairline tied to the logo: the only place gold is used in the panels. */}
+        <span
+          aria-hidden
+          className="absolute inset-x-5 bottom-0 h-px bg-gradient-to-r from-gold/50 via-gold/15 to-transparent"
+        />
       </Link>
 
-      <nav aria-label="Navegación principal" className="flex-1 overflow-y-auto px-3 py-4">
+      <nav aria-label="Navegación principal" className="flex-1 overflow-y-auto px-3 py-5">
         <ul className="flex flex-col gap-1">
           {nav.map((item) => (
             <SidebarItem
@@ -173,7 +199,7 @@ function SidebarBody({
           className={cn("mb-2 flex items-center gap-3", collapsed ? "justify-center" : "px-2 py-1")}
           title={collapsed ? `${name} · ${ROLE_LABELS[role]}` : undefined}
         >
-          <span className="flex size-8 shrink-0 items-center justify-center rounded-full bg-sidebar-accent text-xs font-semibold text-white">
+          <span className="flex size-8 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-slate-600 to-slate-800 text-xs font-semibold text-white ring-1 ring-white/10">
             {initials}
           </span>
           {!collapsed && (
@@ -202,13 +228,13 @@ function SidebarBody({
 
 function sidebarButton(collapsed: boolean) {
   return cn(
-    "h-9 w-full text-sidebar-foreground hover:bg-sidebar-accent hover:text-white focus-visible:ring-blue-400/60",
+    "h-8 w-full text-[13px] font-normal text-sidebar-foreground shadow-none hover:bg-sidebar-accent hover:text-white focus-visible:ring-2 focus-visible:ring-blue-400/50",
     collapsed ? "justify-center px-0" : "justify-start gap-3 px-3",
   );
 }
 
 const itemBase =
-  "relative flex h-9 items-center gap-3 rounded-md text-sm font-medium transition-colors focus-visible:ring-2 focus-visible:ring-blue-400/60 focus-visible:outline-none";
+  "relative flex h-9 items-center gap-3 rounded-md text-[13.5px] font-medium transition-colors duration-150 focus-visible:ring-2 focus-visible:ring-blue-400/50 focus-visible:outline-none";
 
 function SidebarItem({
   item,
@@ -238,7 +264,7 @@ function SidebarItem({
       itemBase,
       collapsed ? "justify-center px-0" : "px-3",
       active
-        ? "bg-sidebar-accent text-white before:absolute before:inset-y-2 before:-left-3 before:w-0.5 before:rounded-full before:bg-white"
+        ? "bg-sidebar-accent text-white shadow-[inset_0_0_0_1px_rgb(255_255_255/0.04)]"
         : "text-sidebar-foreground hover:bg-sidebar-accent/60 hover:text-white",
     );
 
@@ -285,7 +311,7 @@ function SidebarItem({
                   onClick={onNavigate}
                   aria-current={active ? "page" : undefined}
                   className={cn(
-                    "flex h-8 items-center rounded-md px-2.5 text-sm transition-colors focus-visible:ring-2 focus-visible:ring-blue-400/60 focus-visible:outline-none",
+                    "flex h-8 items-center rounded-md px-2.5 text-[13px] transition-colors duration-150 focus-visible:ring-2 focus-visible:ring-blue-400/50 focus-visible:outline-none",
                     active
                       ? "bg-sidebar-accent font-medium text-white"
                       : "text-sidebar-muted hover:bg-sidebar-accent/60 hover:text-white",

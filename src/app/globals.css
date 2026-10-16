@@ -21,10 +21,15 @@
   --color-secondary: var(--secondary);
   --color-primary-foreground: var(--primary-foreground);
   --color-primary: var(--primary);
+  --color-primary-soft: var(--primary-soft);
   --color-popover-foreground: var(--popover-foreground);
   --color-popover: var(--popover);
   --color-card-foreground: var(--card-foreground);
   --color-card: var(--card);
+
+  /* Institutional ink (near-black navy) and the logo gold (accent only) */
+  --color-ink: var(--ink);
+  --color-gold: var(--gold);
 
   /* Sidebar */
   --color-sidebar: var(--sidebar);
@@ -45,6 +50,10 @@
   --color-danger-soft: var(--danger-soft);
   --color-danger-border: var(--danger-border);
 
+  --shadow-card: 0 1px 2px 0 rgb(15 23 42 / 0.04), 0 1px 3px 0 rgb(15 23 42 / 0.03);
+  --shadow-raised: 0 1px 2px 0 rgb(15 23 42 / 0.05), 0 8px 24px -6px rgb(15 23 42 / 0.10);
+  --shadow-float: 0 24px 64px -16px rgb(2 6 23 / 0.45), 0 0 0 1px rgb(255 255 255 / 0.06);
+
   --radius-sm: calc(var(--radius) * 0.6);
   --radius-md: calc(var(--radius) * 0.8);
   --radius-lg: var(--radius);
@@ -52,6 +61,16 @@
   --radius-2xl: calc(var(--radius) * 1.8);
   --radius-3xl: calc(var(--radius) * 2.2);
   --radius-4xl: calc(var(--radius) * 2.6);
+
+  --animate-shimmer: shimmer 1.6s ease-in-out infinite;
+  @keyframes shimmer {
+    0% {
+      background-position: 100% 0;
+    }
+    100% {
+      background-position: -100% 0;
+    }
+  }
 }
 
 :root {
@@ -66,6 +85,10 @@
   /* The only strong color: blue-800 */
   --primary: #1e40af;
   --primary-foreground: #ffffff;
+  --primary-soft: #eff4ff;
+
+  --ink: #0a0f1c;
+  --gold: #b8912f;
 
   --secondary: #f1f5f9;
   --secondary-foreground: #0f172a;
@@ -75,17 +98,17 @@
   --accent-foreground: #0f172a;
   --destructive: #b91c1c;
   --border: #e2e8f0;
-  --input: #cbd5e1;
+  --input: #d5dce6;
   --ring: #1e40af;
   --radius: 0.5rem;
 
-  /* Sidebar (slate-900) */
-  --sidebar: #0f172a;
-  --sidebar-foreground: #cbd5e1;
-  --sidebar-muted: #94a3b8;
-  --sidebar-accent: #1e293b;
+  /* Sidebar */
+  --sidebar: #0b1120;
+  --sidebar-foreground: #aab4c3;
+  --sidebar-muted: #6b778a;
+  --sidebar-accent: #172033;
   --sidebar-accent-foreground: #ffffff;
-  --sidebar-border: #1e293b;
+  --sidebar-border: #1a2437;
 
   /* Status tones */
   --success: #15803d;
@@ -105,7 +128,8 @@
   }
   html {
     @apply font-sans;
-    font-feature-settings: "cv11", "ss01";
+    font-feature-settings: "cv11", "ss01", "ss03";
+    text-rendering: optimizeLegibility;
   }
   body {
     @apply bg-background text-foreground;
@@ -114,6 +138,32 @@
   h2,
   h3 {
     @apply tracking-tight text-foreground;
+    text-wrap: balance;
+  }
+  ::selection {
+    background: rgb(30 64 175 / 0.16);
+  }
+  /* Hide number spinners: grade inputs are compact cells. */
+  input[type="number"]::-webkit-inner-spin-button,
+  input[type="number"]::-webkit-outer-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
+  }
+  input[type="number"] {
+    -moz-appearance: textfield;
+  }
+}
+
+@layer components {
+  /* Very low-opacity grid used behind the dark hero and the login panel. */
+  .bg-grid-dark {
+    background-image:
+      linear-gradient(to right, rgb(255 255 255 / 0.045) 1px, transparent 1px),
+      linear-gradient(to bottom, rgb(255 255 255 / 0.045) 1px, transparent 1px);
+    background-size: 56px 56px;
+  }
+  .surface-card {
+    @apply rounded-xl border border-slate-200/80 bg-card shadow-card;
   }
 }
 
@@ -133,5 +183,14 @@
   * {
     -webkit-print-color-adjust: exact;
     print-color-adjust: exact;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
   }
 }

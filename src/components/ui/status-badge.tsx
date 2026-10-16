@@ -4,11 +4,11 @@ import { cn } from "@/lib/utils";
 export type StatusTone = "neutral" | "success" | "warning" | "danger" | "info";
 
 const TONES: Record<StatusTone, string> = {
-  neutral: "border-border bg-slate-50 text-slate-600",
+  neutral: "border-slate-200 bg-slate-50 text-slate-600",
   success: "border-success-border bg-success-soft text-success",
   warning: "border-warning-border bg-warning-soft text-warning",
   danger: "border-danger-border bg-danger-soft text-danger",
-  info: "border-blue-200 bg-blue-50 text-primary",
+  info: "border-blue-200/80 bg-primary-soft text-primary",
 };
 
 const DOTS: Record<StatusTone, string> = {
@@ -37,7 +37,7 @@ export function StatusBadge({
     <span
       title={title}
       className={cn(
-        "inline-flex h-6 items-center gap-1.5 rounded-md border px-2 text-xs font-medium whitespace-nowrap",
+        "inline-flex h-[22px] items-center gap-1.5 rounded-full border px-2 text-[11.5px] leading-none font-medium whitespace-nowrap",
         TONES[tone],
         className,
       )}
