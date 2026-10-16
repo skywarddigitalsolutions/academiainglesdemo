@@ -1,36 +1,27 @@
 "use client";
 
 import { useParams } from "next/navigation";
-import { useState } from "react";
-import { CheckCheck, Loader2, PenLine, Printer } from "lucide-react";
-import { toast } from "sonner";
+import { Printer } from "lucide-react";
 import type { StudentReportCard } from "@/application/shared";
 import { ErrorState } from "@/components/feedback/error-state";
 import { LoadingState } from "@/components/feedback/loading-state";
 import { PageHeader } from "@/components/layout/page-header";
 import { Button } from "@/components/ui/button";
-import {
-  getBimesterStatus,
-  type BimesterNumber,
-  type ReportCard,
-} from "@/domain/report-card";
+import { getBimesterStatus } from "@/domain/report-card";
 import { fullName } from "@/domain/student";
 import { displayName } from "@/domain/user";
 import { BimesterStatusBadge } from "@/features/report-card/bimester-status-badge";
 import { ReportCardSheet } from "@/features/report-card/report-card-sheet";
-import { errorMessage } from "@/lib/error-message";
-import { bimesterLabel } from "@/lib/format";
-import { getServices } from "@/providers/services";
 import { useAsyncData } from "@/providers/use-async-data";
 
 interface Data extends StudentReportCard {
   teacherNames: string[];
 }
 
-/** Container: full report card for the director, with approval actions. */
+/** Container: read-only report card for Dirección (includes drafts). */
 export function AdminReportCardContainer() {
   const { studentId } = useParams<{ studentId: string }>();
-  const { data, error, loading, setData } = useAsyncData(
+  const { data, error, loading } = useAsyncData(
     `admin-card:${studentId}`,
     async (s): Promise<Data> => {
       const [card, teachers] = await Promise.all([
@@ -46,61 +37,26 @@ export function AdminReportCardContainer() {
     },
   );
 
-  if (loading) return <LoadingState />;
+  if (loading) return <LoadingState variant="cards" />;
   if (error || !data) {
     return <ErrorState message={error ?? "Alumno no encontrado."} backHref="/admin/students" />;
   }
-
-  async function run(action: () => Promise<ReportCard>, success: string) {
-    try {
-      const card = await action();
-      setData({ ...data!, card });
-      toast.success(success);
-    } catch (err) {
-      toast.error(errorMessage(err));
-    }
-  }
-
-  return (
-    <AdminReportCardView
-      data={data}
-      onApprove={(n) =>
-        run(
-          () => getServices().admin.approveBimester(studentId, n),
-          `${bimesterLabel(n)} aprobado y publicado a la familia.`,
-        )
-      }
-      onSignClosing={() =>
-        run(() => getServices().admin.signClosing(studentId), "Cierre firmado por Dirección.")
-      }
-    />
-  );
+  return <AdminReportCardView data={data} />;
 }
 
-function AdminReportCardView({
-  data,
-  onApprove,
-  onSignClosing,
-}: {
-  data: Data;
-  onApprove: (n: BimesterNumber) => Promise<void>;
-  onSignClosing: () => Promise<void>;
-}) {
+function AdminReportCardView({ data }: { data: Data }) {
   const { student, course, card, teacherNames } = data;
-  const closingReady =
-    card.closing.result !== null &&
-    card.closing.finalResult !== null &&
-    !card.closing.directorSignature.signed;
 
   return (
     <>
       <PageHeader
         title={fullName(student)}
+        eyebrow={course.name}
         breadcrumbs={[
           { label: "Alumnos", href: "/admin/students" },
           { label: fullName(student) },
         ]}
-        description={`Vista de Dirección · ${course.name} · Se muestran todos los bimestres, incluso los no publicados.`}
+        description="Vista de Dirección: incluye los borradores que las familias todavía no ven."
         actions={
           <Button variant="outline" onClick={() => window.print()}>
             <Printer aria-hidden />
@@ -119,49 +75,13 @@ function AdminReportCardView({
           data: b,
         }))}
         hiddenText="Sin cargar"
+        hiddenDescription="El docente todavía no cargó este bimestre."
         cuatrimestralExam={card.closing.cuatrimestralExam}
         closing={card.closing.result !== null ? card.closing : null}
-        renderBimesterBadge={(b) => b.data && <BimesterStatusBadge status={getBimesterStatus(b.data)} />}
-        renderBimesterActions={(b) =>
-          b.data && getBimesterStatus(b.data) === "pending-approval" ? (
-            <ActionButton icon={CheckCheck} label="Aprobar y publicar" onClick={() => onApprove(b.number)} />
-          ) : null
-        }
-        closingActions={
-          closingReady ? (
-            <ActionButton icon={PenLine} label="Firmar cierre" onClick={onSignClosing} />
-          ) : null
+        renderBimesterBadge={(b) =>
+          b.data && <BimesterStatusBadge status={getBimesterStatus(b.data)} />
         }
       />
     </>
-  );
-}
-
-function ActionButton({
-  icon: Icon,
-  label,
-  onClick,
-}: {
-  icon: typeof CheckCheck;
-  label: string;
-  onClick: () => Promise<void>;
-}) {
-  const [busy, setBusy] = useState(false);
-  return (
-    <Button
-      className="w-full sm:w-auto"
-      disabled={busy}
-      onClick={async () => {
-        setBusy(true);
-        try {
-          await onClick();
-        } finally {
-          setBusy(false);
-        }
-      }}
-    >
-      {busy ? <Loader2 className="animate-spin" aria-hidden /> : <Icon aria-hidden />}
-      {label}
-    </Button>
   );
 }

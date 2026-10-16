@@ -13,7 +13,7 @@ import { StatusBadge } from "@/components/ui/status-badge";
 import type { BimesterNumber } from "@/domain/report-card";
 import { ReportCardSheet, type SheetBimester } from "@/features/report-card/report-card-sheet";
 import { errorMessage } from "@/lib/error-message";
-import { bimesterLabel, formatDateTime } from "@/lib/format";
+import { bimesterLabel } from "@/lib/format";
 import { getServices } from "@/providers/services";
 import { useAsyncData } from "@/providers/use-async-data";
 import { useSession } from "@/providers/session-provider";
@@ -28,7 +28,7 @@ export function ParentReportCardContainer() {
     (s) => s.parent.getReportCard(parentId, studentId),
   );
 
-  if (loading) return <LoadingState />;
+  if (loading) return <LoadingState variant="cards" />;
   if (error || !data) {
     return <ErrorState message={error ?? "Boletín no encontrado."} backHref="/parent" />;
   }
@@ -63,7 +63,7 @@ function ParentReportCardView({
           { label: "Mis hijos", href: "/parent" },
           { label: `${student.firstName} ${student.lastName}` },
         ]}
-        description="Solo se muestran los bimestres aprobados por Dirección."
+        description="Se muestran los bimestres publicados por el docente. Los demás figuran como pendientes."
         actions={
           <Button variant="outline" onClick={() => window.print()}>
             <Printer aria-hidden />
@@ -90,7 +90,7 @@ function ParentReportCardView({
 
 function ParentBadge({ bimester }: { bimester: SheetBimester }) {
   if (!bimester.visible) return <StatusBadge>Pendiente</StatusBadge>;
-  if (bimester.data?.signatures.parent.signed) {
+  if (bimester.data?.readAt) {
     return (
       <StatusBadge tone="success" dot>
         Leído
@@ -98,7 +98,7 @@ function ParentBadge({ bimester }: { bimester: SheetBimester }) {
     );
   }
   return (
-    <StatusBadge tone="warning" dot>
+    <StatusBadge tone="info" dot>
       Nuevo
     </StatusBadge>
   );
@@ -113,17 +113,10 @@ function AcknowledgeAction({
 }) {
   const [busy, setBusy] = useState(false);
   if (!bimester.visible || !bimester.data) return null;
-  const parent = bimester.data.signatures.parent;
-  if (parent.signed) {
-    return (
-      <p className="flex items-center gap-1.5 text-xs text-success">
-        <CheckCheck className="size-4" aria-hidden />
-        Leído / Notificado el {formatDateTime(parent.at)}
-      </p>
-    );
-  }
+  if (bimester.data.readAt) return null;
   return (
     <Button
+      size="sm"
       className="w-full sm:w-auto"
       disabled={busy}
       onClick={async () => {

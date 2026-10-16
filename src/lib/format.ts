@@ -6,6 +6,7 @@ const dateTimeFormat = new Intl.DateTimeFormat("es-AR", {
   year: "numeric",
   hour: "2-digit",
   minute: "2-digit",
+  hourCycle: "h23",
   timeZone: TIME_ZONE,
 });
 

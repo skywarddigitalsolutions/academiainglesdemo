@@ -36,7 +36,7 @@ export function CoursesList() {
                 <TableHead>Curso</TableHead>
                 <TableHead>Calificación</TableHead>
                 <TableHead>Horario</TableHead>
-                <TableHead>Profesor/a</TableHead>
+                <TableHead>Docente</TableHead>
                 <TableHead className="text-right">Alumnos</TableHead>
                 <TableHead>Curso siguiente</TableHead>
               </TableRow>
@@ -71,7 +71,7 @@ export function TeachersList() {
   const { data, error, loading } = useAsyncData("admin-teachers", (s) => s.admin.listTeachers());
   return (
     <>
-      <PageHeader title="Profesores" description="Profesores del instituto y cursos asignados." />
+      <PageHeader title="Docentes" description="Docentes del instituto y cursos asignados." />
       {loading && <LoadingState />}
       {error && <ErrorState message={error} />}
       {data && (
@@ -79,7 +79,7 @@ export function TeachersList() {
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>Profesor/a</TableHead>
+                <TableHead>Docente</TableHead>
                 <TableHead>Correo electrónico</TableHead>
                 <TableHead>Cursos</TableHead>
               </TableRow>

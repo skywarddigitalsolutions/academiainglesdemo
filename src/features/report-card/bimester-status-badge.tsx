@@ -1,56 +1,43 @@
-import type { BimesterStatus } from "@/domain/report-card";
-import { StatusBadge, statusDotClass, type StatusTone } from "@/components/ui/status-badge";
+import type { BimesterStatus, ClosingStatus } from "@/domain/report-card";
+import { StatusBadge, type StatusTone } from "@/components/ui/status-badge";
 
-const STAFF_LABELS: Record<BimesterStatus, string> = {
+type AnyStatus = BimesterStatus | ClosingStatus;
+
+const LABELS: Record<AnyStatus, string> = {
   empty: "Sin cargar",
   draft: "Borrador",
-  "pending-approval": "Esperando aprobación",
-  approved: "Publicado",
-  acknowledged: "Leído por la familia",
+  published: "Publicado",
+  read: "Leído",
 };
 
-const COMPACT_LABELS: Record<BimesterStatus, string> = {
-  empty: "—",
-  draft: "Borrador",
-  "pending-approval": "Firmado",
-  approved: "Publicado",
-  acknowledged: "Leído",
-};
-
-const TONES: Record<BimesterStatus, StatusTone> = {
+const TONES: Record<AnyStatus, StatusTone> = {
   empty: "neutral",
-  draft: "neutral",
-  "pending-approval": "warning",
-  approved: "success",
-  acknowledged: "success",
+  draft: "warning",
+  published: "info",
+  read: "success",
 };
 
-export function bimesterStatusLabel(status: BimesterStatus): string {
-  return STAFF_LABELS[status];
-}
-
-/** Dot color for a bimester status (used by the editor segmented control). */
-export function bimesterStatusDot(status: BimesterStatus): string {
-  return status === "empty" ? "bg-slate-300" : statusDotClass(TONES[status]);
+export function bimesterStatusLabel(status: AnyStatus): string {
+  return LABELS[status];
 }
 
 export function BimesterStatusBadge({
   status,
   className,
-  compact = false,
+  title,
 }: {
-  status: BimesterStatus;
+  status: AnyStatus;
   className?: string;
-  compact?: boolean;
+  title?: string;
 }) {
   return (
     <StatusBadge
       tone={TONES[status]}
       dot={status !== "empty"}
       className={className}
-      title={STAFF_LABELS[status]}
+      title={title ?? LABELS[status]}
     >
-      {compact ? COMPACT_LABELS[status] : STAFF_LABELS[status]}
+      {LABELS[status]}
     </StatusBadge>
   );
 }
