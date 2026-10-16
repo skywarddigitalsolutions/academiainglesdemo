@@ -8,7 +8,7 @@ const TONES: Record<StatusTone, string> = {
   success: "border-success-border bg-success-soft text-success",
   warning: "border-warning-border bg-warning-soft text-warning",
   danger: "border-danger-border bg-danger-soft text-danger",
-  info: "border-blue-200/80 bg-primary-soft text-primary",
+  info: "border-sky-200/80 bg-primary-soft text-primary",
 };
 
 const DOTS: Record<StatusTone, string> = {

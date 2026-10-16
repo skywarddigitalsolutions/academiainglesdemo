@@ -228,13 +228,13 @@ function SidebarBody({
 
 function sidebarButton(collapsed: boolean) {
   return cn(
-    "h-8 w-full text-[13px] font-normal text-sidebar-foreground shadow-none hover:bg-sidebar-accent hover:text-white focus-visible:ring-2 focus-visible:ring-blue-400/50",
+    "h-8 w-full text-[13px] font-normal text-sidebar-foreground shadow-none hover:bg-sidebar-accent hover:text-white focus-visible:ring-2 focus-visible:ring-sky-400/50",
     collapsed ? "justify-center px-0" : "justify-start gap-3 px-3",
   );
 }
 
 const itemBase =
-  "relative flex h-9 items-center gap-3 rounded-md text-[13.5px] font-medium transition-colors duration-150 focus-visible:ring-2 focus-visible:ring-blue-400/50 focus-visible:outline-none";
+  "relative flex h-9 items-center gap-3 rounded-md text-[13.5px] font-medium transition-colors duration-150 focus-visible:ring-2 focus-visible:ring-sky-400/50 focus-visible:outline-none";
 
 function SidebarItem({
   item,
@@ -311,7 +311,7 @@ function SidebarItem({
                   onClick={onNavigate}
                   aria-current={active ? "page" : undefined}
                   className={cn(
-                    "flex h-8 items-center rounded-md px-2.5 text-[13px] transition-colors duration-150 focus-visible:ring-2 focus-visible:ring-blue-400/50 focus-visible:outline-none",
+                    "flex h-8 items-center rounded-md px-2.5 text-[13px] transition-colors duration-150 focus-visible:ring-2 focus-visible:ring-sky-400/50 focus-visible:outline-none",
                     active
                       ? "bg-sidebar-accent font-medium text-white"
                       : "text-sidebar-muted hover:bg-sidebar-accent/60 hover:text-white",

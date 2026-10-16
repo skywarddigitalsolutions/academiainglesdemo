@@ -129,7 +129,7 @@ export function ObservationCell({
           className={cn(
             "relative inline-flex size-8 items-center justify-center rounded-md border transition-[border-color,box-shadow,background-color,color] duration-150 outline-none focus-visible:border-primary/70 focus-visible:ring-4 focus-visible:ring-primary/12",
             filled
-              ? "border-blue-200 bg-primary-soft text-primary hover:border-blue-300"
+              ? "border-sky-200 bg-primary-soft text-primary hover:border-sky-300"
               : "border-slate-200 bg-white text-slate-400 hover:border-slate-300 hover:text-slate-600",
           )}
         >

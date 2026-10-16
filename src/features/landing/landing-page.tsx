@@ -94,7 +94,7 @@ export function LandingPage() {
           <ul className="grid gap-px overflow-hidden rounded-2xl border border-slate-200 bg-slate-200 sm:grid-cols-2 lg:grid-cols-3">
             {FEATURES.map(({ icon: Icon, title, text }) => (
               <li key={title} className="bg-white p-7">
-                <span className="flex size-10 items-center justify-center rounded-lg bg-primary-soft text-primary ring-1 ring-blue-100 ring-inset">
+                <span className="flex size-10 items-center justify-center rounded-lg bg-primary-soft text-primary ring-1 ring-sky-100 ring-inset">
                   <Icon className="size-5" aria-hidden />
                 </span>
                 <h3 className="mt-5 font-semibold tracking-[-0.01em]">{title}</h3>
@@ -340,7 +340,7 @@ function Pill({ tone, children }: { tone: "info" | "success"; children: ReactNod
       className={cn(
         "inline-flex h-[22px] items-center gap-1.5 rounded-full border px-2 text-[11.5px] font-medium",
         tone === "info"
-          ? "border-blue-200/80 bg-primary-soft text-primary"
+          ? "border-sky-200/80 bg-primary-soft text-primary"
           : "border-success-border bg-success-soft text-success",
       )}
     >

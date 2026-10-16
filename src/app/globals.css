@@ -82,10 +82,10 @@
   --popover: #ffffff;
   --popover-foreground: #0f172a;
 
-  /* The only strong color: blue-800 */
-  --primary: #1e40af;
+  /* The only strong color: institutional celeste (AA with white text) */
+  --primary: #0279bd;
   --primary-foreground: #ffffff;
-  --primary-soft: #eff4ff;
+  --primary-soft: #e8f6fd;
 
   --ink: #0a0f1c;
   --gold: #b8912f;
@@ -99,7 +99,7 @@
   --destructive: #b91c1c;
   --border: #e2e8f0;
   --input: #d5dce6;
-  --ring: #1e40af;
+  --ring: #0279bd;
   --radius: 0.5rem;
 
   /* Sidebar */

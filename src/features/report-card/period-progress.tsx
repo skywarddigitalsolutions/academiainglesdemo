@@ -22,7 +22,7 @@ export function ProgressBar({
       aria-hidden
     >
       <div
-        className="absolute inset-y-0 left-0 rounded-full bg-blue-200 transition-[width] duration-300"
+        className="absolute inset-y-0 left-0 rounded-full bg-sky-200 transition-[width] duration-300"
         style={{ width: `${pct(complete)}%` }}
       />
       <div
@@ -37,7 +37,7 @@ export function ProgressLegend({ className }: { className?: string }) {
   return (
     <div className={cn("flex items-center gap-4 text-xs text-muted-foreground", className)}>
       <span className="inline-flex items-center gap-1.5">
-        <span className="size-2 rounded-full bg-blue-200" aria-hidden />
+        <span className="size-2 rounded-full bg-sky-200" aria-hidden />
         Cargado
       </span>
       <span className="inline-flex items-center gap-1.5">

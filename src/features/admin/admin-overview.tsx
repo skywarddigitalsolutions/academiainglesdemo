@@ -84,7 +84,7 @@ function StatCard({
         className="group surface-card flex h-full flex-col p-5 transition-[border-color,box-shadow] duration-150 hover:border-slate-300 hover:shadow-raised focus-visible:ring-4 focus-visible:ring-primary/15 focus-visible:outline-none"
       >
         <div className="flex items-center justify-between">
-          <span className="flex size-9 items-center justify-center rounded-lg bg-primary-soft text-primary ring-1 ring-blue-100 ring-inset">
+          <span className="flex size-9 items-center justify-center rounded-lg bg-primary-soft text-primary ring-1 ring-sky-100 ring-inset">
             <Icon className="size-[18px]" aria-hidden />
           </span>
           <ArrowUpRight
