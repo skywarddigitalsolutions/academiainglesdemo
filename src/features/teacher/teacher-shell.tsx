@@ -1,7 +1,7 @@
 "use client";
 
 import type { ReactNode } from "react";
-import { BookOpen, FileText, House } from "lucide-react";
+import { BookOpen, House } from "lucide-react";
 import { AppShell, type NavItem } from "@/components/layout/app-shell";
 import { useAsyncData } from "@/providers/use-async-data";
 import { useSession } from "@/providers/session-provider";
@@ -24,7 +24,6 @@ export function TeacherShell({ children }: { children: ReactNode }) {
         label: course.name,
       })),
     },
-    { label: "Boletines", href: "/teacher/report-cards", icon: FileText },
   ];
 
   return (

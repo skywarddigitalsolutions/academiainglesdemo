@@ -1,11 +1,11 @@
 import { Suspense } from "react";
 import { LoadingState } from "@/components/feedback/loading-state";
-import { CourseRosterContainer } from "@/features/teacher/course-roster";
+import { GradeSheetContainer } from "@/features/teacher/grade-sheet/grade-sheet";
 
 export default function Page() {
   return (
     <Suspense fallback={<LoadingState />}>
-      <CourseRosterContainer />
+      <GradeSheetContainer />
     </Suspense>
   );
 }
