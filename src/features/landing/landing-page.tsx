@@ -1,6 +1,7 @@
 import Link from "next/link";
+import type { ReactNode } from "react";
 import {
-  BookOpen,
+  ArrowRight,
   CheckCheck,
   Clock,
   GraduationCap,
@@ -13,7 +14,6 @@ import {
   Smartphone,
   Users,
 } from "lucide-react";
-import { BrandLogo } from "@/components/brand/brand-logo";
 import { Crest } from "@/components/brand/crest";
 import { SiteFooter } from "@/components/layout/site-footer";
 import { Button } from "@/components/ui/button";
@@ -29,11 +29,11 @@ const VALUES = [
   {
     icon: Users,
     title: "Grupos reducidos",
-    text: "Clases con pocos alumnos para que cada estudiante participe, practique y reciba atención personalizada.",
+    text: "Clases con pocos alumnos para que cada estudiante participe y reciba atención personalizada.",
   },
   {
     icon: GraduationCap,
-    title: "Docentes especializados",
+    title: "Profesores especializados",
     text: "Profesoras y profesores de inglés con formación específica y experiencia en todas las edades.",
   },
   {
@@ -48,32 +48,32 @@ const LEVELS = [
     name: "Kids",
     range: "1° a 4° grado",
     grading: "Evaluación conceptual",
-    text: "Primer contacto con el idioma a través del juego, canciones y cuentos. Vocabulario, comprensión oral y primeras producciones.",
+    text: "Primer contacto con el idioma a través del juego, canciones y cuentos.",
   },
   {
     name: "Juniors",
     range: "5° a 7° grado",
     grading: "Calificación numérica",
-    text: "Consolidación de la gramática, lectura y escritura. Proyectos en grupo y desarrollo de la expresión oral.",
+    text: "Consolidación de la gramática, lectura y escritura, con proyectos en grupo.",
   },
   {
     name: "Teens",
     range: "1° a 5° año",
     grading: "Calificación numérica",
-    text: "Inglés para comunicarse con fluidez: debates, presentaciones, comprensión de textos auténticos y escritura académica.",
+    text: "Inglés para comunicarse con fluidez: debates, presentaciones y escritura académica.",
   },
 ];
 
 const STEPS = [
   {
     icon: PenLine,
-    title: "El docente carga el bimestre",
-    text: "Nota de aplicación, conducta, inasistencias y una observación personalizada para cada alumno.",
+    title: "El profesor carga el bimestre",
+    text: "Nota de aplicación, conducta, inasistencias y una observación para cada alumno.",
   },
   {
     icon: CheckCheck,
     title: "Firma y cierra",
-    text: "Al finalizar el bimestre, el docente lo firma y queda listo para la revisión de Dirección.",
+    text: "Al finalizar el bimestre, lo firma y queda listo para la revisión de Dirección.",
   },
   {
     icon: ShieldCheck,
@@ -83,33 +83,38 @@ const STEPS = [
   {
     icon: Smartphone,
     title: "La familia lo consulta",
-    text: "Desde el celular o la computadora, con la opción de marcar “Leído / Notificado” e imprimir.",
+    text: "Desde el celular o la computadora, con la opción de marcar “Leído” e imprimir.",
   },
+];
+
+const CONTACT = [
+  { icon: MapPin, title: "Dirección", text: "Av. San Martín 1234, Buenos Aires" },
+  { icon: Phone, title: "Teléfono", text: "(011) 4000-0000" },
+  { icon: Mail, title: "Correo", text: "secretaria@inmaculada.edu.ar" },
+  { icon: Clock, title: "Secretaría", text: "Lunes a viernes de 13 a 19 h" },
 ];
 
 export function LandingPage() {
   return (
     <div className="flex min-h-screen flex-col bg-white">
-      <header className="sticky top-0 z-30 border-b border-gold/60 bg-navy/95 text-white backdrop-blur">
-        <div className="mx-auto flex max-w-6xl items-center justify-between gap-4 px-4 py-3">
-          <Link href="/" className="flex items-center gap-3">
-            <Crest className="h-10" />
-            <span className="hidden font-heading text-lg font-semibold sm:inline">
-              Instituto Inmaculada Concepción
-            </span>
+      <header className="sticky top-0 z-30 border-b bg-white/90 backdrop-blur">
+        <div className="mx-auto flex h-16 max-w-6xl items-center justify-between gap-4 px-4 sm:px-6">
+          <Link href="/" className="flex items-center gap-2.5 text-foreground">
+            <Crest className="h-7" />
+            <span className="text-sm font-semibold">Instituto Inmaculada Concepción</span>
           </Link>
           <nav aria-label="Secciones" className="hidden md:block">
-            <ul className="flex gap-6 text-sm text-white/85">
+            <ul className="flex gap-8 text-sm text-muted-foreground">
               {NAV.map((item) => (
                 <li key={item.href}>
-                  <a href={item.href} className="hover:text-celeste">
+                  <a href={item.href} className="transition-colors hover:text-foreground">
                     {item.label}
                   </a>
                 </li>
               ))}
             </ul>
           </nav>
-          <Button asChild size="lg" className="h-10 px-5 font-semibold">
+          <Button asChild>
             <Link href="/login">Ingresar</Link>
           </Button>
         </div>
@@ -117,187 +122,196 @@ export function LandingPage() {
 
       <main className="flex-1">
         {/* Hero */}
-        <section className="relative overflow-hidden bg-navy text-white">
-          <div
-            aria-hidden
-            className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,rgba(110,193,228,0.28),transparent_55%)]"
-          />
-          <div className="relative mx-auto grid max-w-6xl items-center gap-10 px-4 py-16 sm:py-24 md:grid-cols-[1.3fr_1fr]">
+        <section className="border-b">
+          <div className="mx-auto grid max-w-6xl items-center gap-12 px-4 py-20 sm:px-6 sm:py-28 lg:grid-cols-[1.1fr_1fr]">
             <div>
-              <p className="mb-4 text-xs font-semibold tracking-[0.3em] text-celeste uppercase">
+              <p className="mb-6 inline-flex items-center gap-2 rounded-full border px-3 py-1 text-xs font-medium text-muted-foreground">
+                <span className="size-1.5 rounded-full bg-primary" aria-hidden />
                 Instituto de Inglés
               </p>
-              <h1 className="font-heading text-4xl leading-tight font-semibold text-white sm:text-5xl lg:text-6xl">
-                Instituto Inmaculada Concepción
+              <h1 className="text-4xl font-semibold tracking-tight sm:text-5xl">
+                El progreso de cada alumno, claro y al día.
               </h1>
-              <div className="my-6 h-0.5 w-24 bg-gold" aria-hidden />
-              <p className="max-w-xl text-base leading-relaxed text-white/85 sm:text-lg">
-                Acompañamos a nuestros alumnos a comunicarse en inglés con
-                confianza, desde los primeros grados hasta el secundario. Ahora,
-                las familias pueden consultar el boletín de calificaciones en línea.
+              <p className="mt-6 max-w-xl text-lg leading-relaxed text-muted-foreground">
+                En el Instituto Inmaculada Concepción acompañamos a nuestros alumnos a
+                comunicarse en inglés con confianza. Las familias consultan el
+                boletín de calificaciones en línea.
               </p>
-              <div className="mt-8 flex flex-col gap-3 sm:flex-row">
-                <Button asChild size="lg" className="h-12 px-6 text-base font-semibold">
-                  <Link href="/login">Ingresar al boletín en línea</Link>
+              <div className="mt-10 flex flex-col gap-3 sm:flex-row">
+                <Button asChild size="lg" className="h-11 px-6">
+                  <Link href="/login">
+                    Ingresar
+                    <ArrowRight aria-hidden />
+                  </Link>
                 </Button>
-                <Button
-                  asChild
-                  variant="outline"
-                  size="lg"
-                  className="h-12 border-white/40 bg-transparent px-6 text-base text-white hover:bg-white/10 hover:text-white"
-                >
-                  <a href="#instituto">Conocer el instituto</a>
+                <Button asChild variant="outline" size="lg" className="h-11 px-6">
+                  <a href="#boletin">Cómo funciona</a>
                 </Button>
               </div>
             </div>
-            <div className="flex justify-center">
-              <div className="relative flex size-64 items-center justify-center rounded-full border border-gold/50 bg-white/5 sm:size-80">
-                <div className="absolute inset-3 rounded-full border border-gold/25" aria-hidden />
-                <BrandLogo className="h-40 sm:h-52" />
-              </div>
-            </div>
+            <ReportCardPreview />
           </div>
         </section>
 
         {/* About */}
-        <section id="instituto" className="scroll-mt-20 bg-background py-16 sm:py-20">
-          <div className="mx-auto max-w-6xl px-4">
-            <SectionTitle
-              eyebrow="El instituto"
-              title="Una comunidad que aprende inglés"
-              text="Somos un instituto de inglés con una propuesta cálida y exigente, pensada para cada etapa de la escolaridad."
-            />
-            <div className="mt-10 grid gap-5 md:grid-cols-3">
-              {VALUES.map(({ icon: Icon, title, text }) => (
-                <div key={title} className="rounded-2xl border bg-card p-6 shadow-sm">
-                  <div className="mb-4 flex size-11 items-center justify-center rounded-xl bg-celeste-light">
-                    <Icon className="size-5 text-navy" aria-hidden />
-                  </div>
-                  <h3 className="text-lg font-semibold">{title}</h3>
-                  <p className="mt-2 text-sm leading-relaxed text-muted-foreground">{text}</p>
-                </div>
-              ))}
-            </div>
+        <Section
+          id="instituto"
+          eyebrow="El instituto"
+          title="Una comunidad que aprende inglés"
+          text="Una propuesta cálida y exigente, pensada para cada etapa de la escolaridad."
+        >
+          <div className="grid gap-8 md:grid-cols-3">
+            {VALUES.map(({ icon: Icon, title, text }) => (
+              <div key={title}>
+                <Icon className="mb-4 size-5 text-primary" aria-hidden />
+                <h3 className="font-semibold">{title}</h3>
+                <p className="mt-2 text-sm leading-relaxed text-muted-foreground">{text}</p>
+              </div>
+            ))}
           </div>
-        </section>
+        </Section>
 
         {/* Levels */}
-        <section id="niveles" className="scroll-mt-20 bg-white py-16 sm:py-20">
-          <div className="mx-auto max-w-6xl px-4">
-            <SectionTitle
-              eyebrow="Niveles"
-              title="Un recorrido para cada edad"
-              text="Cada curso define su forma de evaluación: conceptual en los primeros grados y numérica a partir de 5° grado."
-            />
-            <div className="mt-10 grid gap-5 md:grid-cols-3">
-              {LEVELS.map((level) => (
-                <div
-                  key={level.name}
-                  className="relative overflow-hidden rounded-2xl border bg-card p-6 shadow-sm"
-                >
-                  <div className="absolute inset-x-0 top-0 h-1 bg-celeste" aria-hidden />
-                  <BookOpen className="mb-3 size-6 text-celeste-strong" aria-hidden />
-                  <h3 className="text-2xl font-semibold">{level.name}</h3>
-                  <p className="text-sm font-medium text-navy">{level.range}</p>
-                  <span className="mt-2 inline-block rounded-full bg-celeste-light px-2.5 py-0.5 text-xs font-medium text-navy">
-                    {level.grading}
-                  </span>
-                  <p className="mt-4 text-sm leading-relaxed text-muted-foreground">{level.text}</p>
+        <Section
+          id="niveles"
+          eyebrow="Niveles"
+          title="Un recorrido para cada edad"
+          text="Evaluación conceptual en los primeros grados y numérica a partir de 5° grado."
+          muted
+        >
+          <div className="grid gap-4 md:grid-cols-3">
+            {LEVELS.map((level) => (
+              <div key={level.name} className="rounded-lg border bg-card p-6 shadow-xs">
+                <div className="flex items-baseline justify-between gap-2">
+                  <h3 className="text-lg font-semibold">{level.name}</h3>
+                  <span className="text-sm text-muted-foreground">{level.range}</span>
                 </div>
-              ))}
-            </div>
+                <p className="mt-1 text-xs font-medium text-primary">{level.grading}</p>
+                <p className="mt-4 text-sm leading-relaxed text-muted-foreground">{level.text}</p>
+              </div>
+            ))}
           </div>
-        </section>
+        </Section>
 
         {/* Online report card */}
-        <section id="boletin" className="scroll-mt-20 bg-celeste-light/60 py-16 sm:py-20">
-          <div className="mx-auto max-w-6xl px-4">
-            <SectionTitle
-              eyebrow="Boletín en línea"
-              title="Las calificaciones, al alcance de las familias"
-              text="Reemplazamos el boletín en papel por un boletín digital, seguro y fácil de consultar."
-            />
-            <ol className="mt-10 grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
-              {STEPS.map(({ icon: Icon, title, text }, i) => (
-                <li key={title} className="rounded-2xl border bg-card p-6 shadow-sm">
-                  <div className="mb-4 flex items-center gap-3">
-                    <span className="flex size-9 items-center justify-center rounded-full bg-navy font-heading text-sm text-white">
-                      {i + 1}
-                    </span>
-                    <Icon className="size-5 text-celeste-strong" aria-hidden />
-                  </div>
-                  <h3 className="text-base font-semibold">{title}</h3>
-                  <p className="mt-2 text-sm leading-relaxed text-muted-foreground">{text}</p>
-                </li>
-              ))}
-            </ol>
-            <div className="mt-10 flex justify-center">
-              <Button asChild size="lg" className="h-12 px-8 text-base font-semibold">
-                <Link href="/login">Ingresar</Link>
-              </Button>
-            </div>
-          </div>
-        </section>
+        <Section
+          id="boletin"
+          eyebrow="Boletín en línea"
+          title="Las calificaciones, al alcance de las familias"
+          text="Un boletín digital, seguro y fácil de consultar, que reemplaza al boletín en papel."
+        >
+          <ol className="grid gap-8 sm:grid-cols-2 lg:grid-cols-4">
+            {STEPS.map(({ icon: Icon, title, text }, i) => (
+              <li key={title} className="border-t pt-6">
+                <div className="mb-4 flex items-center gap-3 text-sm text-muted-foreground">
+                  <span className="font-mono tabular-nums">0{i + 1}</span>
+                  <Icon className="size-4 text-primary" aria-hidden />
+                </div>
+                <h3 className="font-semibold">{title}</h3>
+                <p className="mt-2 text-sm leading-relaxed text-muted-foreground">{text}</p>
+              </li>
+            ))}
+          </ol>
+        </Section>
 
         {/* Contact */}
-        <section id="contacto" className="scroll-mt-20 bg-white py-16 sm:py-20">
-          <div className="mx-auto max-w-6xl px-4">
-            <SectionTitle
-              eyebrow="Contacto"
-              title="Estamos para ayudarlos"
-              text="Consultas sobre inscripciones, horarios o el acceso al boletín en línea."
-            />
-            <div className="mt-10 grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
-              <ContactItem icon={MapPin} title="Dirección" text="Av. San Martín 1234, Buenos Aires" />
-              <ContactItem icon={Phone} title="Teléfono" text="(011) 4000-0000" />
-              <ContactItem icon={Mail} title="Correo" text="secretaria@inmaculada.edu.ar" />
-              <ContactItem icon={Clock} title="Secretaría" text="Lunes a viernes de 13 a 19 h" />
-            </div>
-          </div>
-        </section>
+        <Section
+          id="contacto"
+          eyebrow="Contacto"
+          title="Estamos para ayudarlos"
+          text="Consultas sobre inscripciones, horarios o el acceso al boletín en línea."
+          muted
+        >
+          <dl className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+            {CONTACT.map(({ icon: Icon, title, text }) => (
+              <div key={title} className="flex items-start gap-3 rounded-lg border bg-card p-5 shadow-xs">
+                <Icon className="mt-0.5 size-4 shrink-0 text-muted-foreground" aria-hidden />
+                <div>
+                  <dt className="text-sm font-medium">{title}</dt>
+                  <dd className="text-sm text-muted-foreground">{text}</dd>
+                </div>
+              </div>
+            ))}
+          </dl>
+        </Section>
       </main>
       <SiteFooter />
     </div>
   );
 }
 
-function SectionTitle({
+function Section({
+  id,
   eyebrow,
   title,
   text,
+  muted = false,
+  children,
 }: {
+  id: string;
   eyebrow: string;
   title: string;
   text: string;
+  muted?: boolean;
+  children: ReactNode;
 }) {
   return (
-    <div className="mx-auto max-w-2xl text-center">
-      <p className="text-xs font-semibold tracking-[0.25em] text-celeste-strong uppercase">
-        {eyebrow}
-      </p>
-      <h2 className="mt-3 text-3xl font-semibold sm:text-4xl">{title}</h2>
-      <div className="mx-auto my-4 h-0.5 w-16 bg-gold" aria-hidden />
-      <p className="text-muted-foreground">{text}</p>
-    </div>
+    <section id={id} className={muted ? "scroll-mt-16 border-y bg-background" : "scroll-mt-16"}>
+      <div className="mx-auto max-w-6xl px-4 py-20 sm:px-6">
+        <div className="mb-12 max-w-2xl">
+          <p className="text-sm font-medium text-primary">{eyebrow}</p>
+          <h2 className="mt-2 text-3xl font-semibold">{title}</h2>
+          <p className="mt-3 text-muted-foreground">{text}</p>
+        </div>
+        {children}
+      </div>
+    </section>
   );
 }
 
-function ContactItem({
-  icon: Icon,
-  title,
-  text,
-}: {
-  icon: typeof MapPin;
-  title: string;
-  text: string;
-}) {
+/** Static, decorative preview of the online report card. */
+function ReportCardPreview() {
+  const rows = [
+    { label: "Nota de aplicación", values: ["8", "9", "8,5", "—"] },
+    { label: "Conducta", values: ["Muy bueno", "Muy bueno", "Excelente", "—"] },
+    { label: "Inasistencias", values: ["1", "0", "2", "—"] },
+  ];
   return (
-    <div className="flex items-start gap-3 rounded-2xl border bg-card p-5">
-      <Icon className="mt-0.5 size-5 shrink-0 text-celeste-strong" aria-hidden />
-      <div>
-        <p className="text-sm font-semibold text-navy">{title}</p>
-        <p className="text-sm text-muted-foreground">{text}</p>
+    <div aria-hidden className="rounded-lg border bg-card p-5 shadow-sm">
+      <div className="mb-4 flex items-center justify-between border-b pb-4">
+        <div>
+          <p className="text-sm font-semibold">Boletín de calificaciones</p>
+          <p className="text-xs text-muted-foreground">Ana García · 5° Grado A</p>
+        </div>
+        <span className="inline-flex h-6 items-center gap-1.5 rounded-md border border-success-border bg-success-soft px-2 text-xs font-medium text-success">
+          <span className="size-1.5 rounded-full bg-success" />
+          Publicado
+        </span>
       </div>
+      <table className="w-full text-sm">
+        <thead>
+          <tr className="text-xs text-muted-foreground uppercase">
+            <th className="pb-2 text-left font-medium tracking-wide">Concepto</th>
+            {["1°", "2°", "3°", "4°"].map((b) => (
+              <th key={b} className="pb-2 text-center font-medium">
+                {b}
+              </th>
+            ))}
+          </tr>
+        </thead>
+        <tbody>
+          {rows.map((row) => (
+            <tr key={row.label} className="border-t">
+              <td className="py-2.5 pr-2 text-xs text-slate-700 sm:text-sm">{row.label}</td>
+              {row.values.map((v, i) => (
+                <td key={i} className="px-1 py-2.5 text-center text-xs tabular-nums text-slate-700 sm:text-sm">
+                  {v}
+                </td>
+              ))}
+            </tr>
+          ))}
+        </tbody>
+      </table>
     </div>
   );
 }
