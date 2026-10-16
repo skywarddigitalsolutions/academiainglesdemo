@@ -12,7 +12,7 @@ export function GradeText({
   const low = isBelowPassMark(value);
   return (
     <span
-      className={cn(low && "font-semibold text-warning", className)}
+      className={cn(low && "rounded bg-danger-soft px-1 font-semibold text-danger", className)}
       title={low ? "Por debajo de la nota de aprobación (6)" : undefined}
     >
       {formatGrade(value)}

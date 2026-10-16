@@ -1,5 +1,5 @@
 import type { BimesterStatus } from "@/domain/report-card";
-import { cn } from "@/lib/utils";
+import { StatusBadge, statusDotClass, type StatusTone } from "@/components/ui/status-badge";
 
 const STAFF_LABELS: Record<BimesterStatus, string> = {
   empty: "Sin cargar",
@@ -9,16 +9,29 @@ const STAFF_LABELS: Record<BimesterStatus, string> = {
   acknowledged: "Leído por la familia",
 };
 
-const STYLES: Record<BimesterStatus, string> = {
-  empty: "bg-muted text-muted-foreground",
-  draft: "bg-warning-bg text-warning",
-  "pending-approval": "bg-celeste-light text-navy ring-1 ring-celeste",
-  approved: "bg-success-bg text-success",
-  acknowledged: "bg-success-bg text-success",
+const COMPACT_LABELS: Record<BimesterStatus, string> = {
+  empty: "—",
+  draft: "Borrador",
+  "pending-approval": "Firmado",
+  approved: "Publicado",
+  acknowledged: "Leído",
+};
+
+const TONES: Record<BimesterStatus, StatusTone> = {
+  empty: "neutral",
+  draft: "neutral",
+  "pending-approval": "warning",
+  approved: "success",
+  acknowledged: "success",
 };
 
 export function bimesterStatusLabel(status: BimesterStatus): string {
   return STAFF_LABELS[status];
+}
+
+/** Dot color for a bimester status (used by the editor segmented control). */
+export function bimesterStatusDot(status: BimesterStatus): string {
+  return status === "empty" ? "bg-slate-300" : statusDotClass(TONES[status]);
 }
 
 export function BimesterStatusBadge({
@@ -31,23 +44,13 @@ export function BimesterStatusBadge({
   compact?: boolean;
 }) {
   return (
-    <span
-      className={cn(
-        "inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium whitespace-nowrap",
-        STYLES[status],
-        className,
-      )}
+    <StatusBadge
+      tone={TONES[status]}
+      dot={status !== "empty"}
+      className={className}
       title={STAFF_LABELS[status]}
     >
       {compact ? COMPACT_LABELS[status] : STAFF_LABELS[status]}
-    </span>
+    </StatusBadge>
   );
 }
-
-const COMPACT_LABELS: Record<BimesterStatus, string> = {
-  empty: "—",
-  draft: "Borrador",
-  "pending-approval": "Firmado",
-  approved: "Publicado",
-  acknowledged: "Leído",
-};

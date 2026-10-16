@@ -20,6 +20,7 @@ import {
 import { fullName } from "@/domain/student";
 import { errorMessage } from "@/lib/error-message";
 import { bimesterLabel } from "@/lib/format";
+import { bimesterStatusDot } from "@/features/report-card/bimester-status-badge";
 import { cn } from "@/lib/utils";
 import { getServices } from "@/providers/services";
 import { useAsyncData } from "@/providers/use-async-data";
@@ -91,15 +92,9 @@ export function ReportCardEditorContainer() {
   return <ReportCardEditor data={data} actions={actions} />;
 }
 
-const STATUS_DOT: Record<string, string> = {
-  empty: "bg-muted-foreground/40",
-  draft: "bg-warning",
-  "pending-approval": "bg-celeste",
-  approved: "bg-success",
-  acknowledged: "bg-success",
-};
+const SEGMENT = "h-8 gap-2 px-3 data-active:bg-white data-active:shadow-xs";
 
-/** Presentational: tabs per bimester plus the closing section. */
+/** Presentational: segmented control per bimester plus the closing section. */
 function ReportCardEditor({
   data,
   actions,
@@ -116,13 +111,16 @@ function ReportCardEditor({
     <>
       <PageHeader
         title={fullName(student)}
-        backHref={`/teacher/courses/${course.id}`}
-        backLabel={course.name}
+        breadcrumbs={[
+          { label: "Mis cursos", href: "/teacher" },
+          { label: course.name, href: `/teacher/courses/${course.id}` },
+          { label: fullName(student) },
+        ]}
         description={`${course.name} · Calificación ${gradingTypeLabel(course.gradingType).toLowerCase()} · Ciclo lectivo ${card.year}`}
       />
 
-      <div className="mb-5 flex items-start gap-2 rounded-xl border border-celeste/60 bg-celeste-light/60 px-4 py-3 text-sm text-navy">
-        <Info className="mt-0.5 size-4 shrink-0" aria-hidden />
+      <div className="mb-6 flex items-start gap-2 rounded-md border bg-card px-4 py-3 text-sm text-muted-foreground">
+        <Info className="mt-0.5 size-4 shrink-0 text-primary" aria-hidden />
         <p>
           El sistema registra; las decisiones las toma el docente. Al firmar un
           bimestre, se envía a Dirección para su aprobación y luego se publica a
@@ -130,26 +128,26 @@ function ReportCardEditor({
         </p>
       </div>
 
-      <Tabs value={tab} onValueChange={setTab}>
-        <div className="-mx-4 overflow-x-auto px-4 pb-1">
-          <TabsList className="h-11 w-max">
+      <Tabs value={tab} onValueChange={setTab} className="gap-6">
+        <div className="-mx-4 overflow-x-auto px-4 sm:mx-0 sm:px-0">
+          <TabsList aria-label="Bimestres" className="h-10 w-max bg-slate-100 p-1">
             {card.bimesters.map((b) => (
-              <TabsTrigger key={b.number} value={String(b.number)} className="h-9 gap-2 px-3">
+              <TabsTrigger key={b.number} value={String(b.number)} className={SEGMENT}>
                 <span
-                  className={cn("size-2 rounded-full", STATUS_DOT[getBimesterStatus(b)])}
+                  className={cn("size-1.5 rounded-full", bimesterStatusDot(getBimesterStatus(b)))}
                   aria-hidden
                 />
                 {bimesterLabel(b.number)}
               </TabsTrigger>
             ))}
-            <TabsTrigger value="closing" className="h-9 px-3">
+            <TabsTrigger value="closing" className={SEGMENT}>
               Cierre
             </TabsTrigger>
           </TabsList>
         </div>
 
         {card.bimesters.map((b) => (
-          <TabsContent key={b.number} value={String(b.number)} className="mt-4">
+          <TabsContent key={b.number} value={String(b.number)}>
             <BimesterForm
               key={`${b.number}:${b.signatures.teacher.at ?? "open"}`}
               bimester={b}
@@ -158,7 +156,7 @@ function ReportCardEditor({
             />
           </TabsContent>
         ))}
-        <TabsContent value="closing" className="mt-4">
+        <TabsContent value="closing">
           <ClosingForm
             key={card.closing.directorSignature.at ?? "open"}
             card={card}

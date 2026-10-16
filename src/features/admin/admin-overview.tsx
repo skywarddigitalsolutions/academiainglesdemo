@@ -1,12 +1,22 @@
 "use client";
 
 import Link from "next/link";
-import { ArrowRight, ClipboardCheck, GraduationCap, Users, UsersRound } from "lucide-react";
+import { ArrowRight, BookOpen, ClipboardCheck, Users, type LucideIcon } from "lucide-react";
 import type { CourseOverview } from "@/application/admin-use-cases";
 import { ErrorState } from "@/components/feedback/error-state";
 import { LoadingState } from "@/components/feedback/loading-state";
 import { PageHeader } from "@/components/layout/page-header";
 import { Button } from "@/components/ui/button";
+import { StatusBadge } from "@/components/ui/status-badge";
+import {
+  Table,
+  TableBody,
+  TableCard,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 import { gradingTypeLabel } from "@/domain/course";
 import { displayName } from "@/domain/user";
 import { useAsyncData } from "@/providers/use-async-data";
@@ -20,10 +30,10 @@ export function AdminOverview() {
   return (
     <>
       <PageHeader
-        title="Resumen de Dirección"
+        title="Inicio"
         description="Estado general de los boletines del ciclo lectivo."
         actions={
-          <Button asChild size="lg" className="font-semibold">
+          <Button asChild>
             <Link href="/admin/approvals">
               <ClipboardCheck aria-hidden />
               Revisar aprobaciones
@@ -35,7 +45,17 @@ export function AdminOverview() {
       {error && <ErrorState message={error} />}
       {data && (
         <>
-          <StatGrid totals={data.totals} />
+          <ul className="mb-10 grid gap-4 sm:grid-cols-3">
+            <StatCard label="Alumnos" value={data.totals.students} icon={Users} href="/admin/students" />
+            <StatCard label="Cursos" value={data.courses.length} icon={BookOpen} href="/admin/courses" />
+            <StatCard
+              label="Aprobaciones pendientes"
+              value={data.totals.pendingApprovals}
+              icon={ClipboardCheck}
+              href="/admin/approvals"
+              hint={data.totals.pendingApprovals > 0 ? "Requieren revisión" : "Todo al día"}
+            />
+          </ul>
           <CourseTable courses={data.courses} />
         </>
       )}
@@ -43,81 +63,89 @@ export function AdminOverview() {
   );
 }
 
-function StatGrid({
-  totals,
+function StatCard({
+  label,
+  value,
+  icon: Icon,
+  href,
+  hint,
 }: {
-  totals: { students: number; parents: number; teachers: number; pendingApprovals: number };
+  label: string;
+  value: number;
+  icon: LucideIcon;
+  href: string;
+  hint?: string;
 }) {
-  const stats = [
-    {
-      label: "Aprobaciones pendientes",
-      value: totals.pendingApprovals,
-      icon: ClipboardCheck,
-      href: "/admin/approvals",
-      highlight: totals.pendingApprovals > 0,
-    },
-    { label: "Alumnos", value: totals.students, icon: Users, href: "/admin/students" },
-    { label: "Familias", value: totals.parents, icon: UsersRound, href: "/admin/parents" },
-    { label: "Docentes", value: totals.teachers, icon: GraduationCap, href: "/admin/teachers" },
-  ];
   return (
-    <ul className="mb-8 grid grid-cols-2 gap-3 lg:grid-cols-4">
-      {stats.map(({ label, value, icon: Icon, href, highlight }) => (
-        <li key={label}>
-          <Link
-            href={href}
-            className={
-              "flex h-full flex-col gap-2 rounded-2xl border bg-card p-4 shadow-sm transition hover:border-celeste sm:p-5 " +
-              (highlight ? "border-celeste bg-celeste-light/50" : "")
-            }
-          >
-            <Icon className="size-5 text-celeste-strong" aria-hidden />
-            <span className="font-heading text-3xl font-semibold text-navy">{value}</span>
-            <span className="text-sm text-muted-foreground">{label}</span>
-          </Link>
-        </li>
-      ))}
-    </ul>
+    <li>
+      <Link
+        href={href}
+        className="group flex h-full flex-col rounded-lg border bg-card p-5 shadow-xs transition-colors hover:border-slate-300 focus-visible:ring-3 focus-visible:ring-ring/40 focus-visible:outline-none"
+      >
+        <div className="flex items-center justify-between">
+          <span className="text-sm text-muted-foreground">{label}</span>
+          <Icon className="size-4 text-slate-400" aria-hidden />
+        </div>
+        <span className="mt-2 text-3xl font-semibold tracking-tight tabular-nums">{value}</span>
+        {hint && <span className="mt-1 text-xs text-muted-foreground">{hint}</span>}
+      </Link>
+    </li>
   );
 }
 
 function CourseTable({ courses }: { courses: CourseOverview[] }) {
   return (
     <section>
-      <h2 className="mb-3 text-xl font-semibold">Cursos</h2>
-      <ul className="grid gap-3 md:grid-cols-3">
-        {courses.map(({ course, teachers, studentCount, pendingApprovals }) => (
-          <li key={course.id} className="flex flex-col rounded-2xl border bg-card p-5 shadow-sm">
-            <div className="flex items-start justify-between gap-2">
-              <h3 className="text-lg font-semibold">{course.name}</h3>
-              {pendingApprovals > 0 && (
-                <span className="rounded-full bg-celeste-light px-2 py-0.5 text-xs font-semibold text-navy ring-1 ring-celeste">
-                  {pendingApprovals} por aprobar
-                </span>
-              )}
-            </div>
-            <p className="text-sm text-muted-foreground">{gradingTypeLabel(course.gradingType)}</p>
-            <dl className="mt-3 space-y-1 text-sm">
-              <div className="flex justify-between gap-2">
-                <dt className="text-muted-foreground">Docente</dt>
-                <dd className="text-right font-medium text-navy">
+      <h2 className="mb-3 text-sm font-semibold">Cursos</h2>
+      <TableCard>
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead>Curso</TableHead>
+              <TableHead>Calificación</TableHead>
+              <TableHead>Profesor/a</TableHead>
+              <TableHead className="text-right">Alumnos</TableHead>
+              <TableHead>Estado</TableHead>
+              <TableHead>
+                <span className="sr-only">Acciones</span>
+              </TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {courses.map(({ course, teachers, studentCount, pendingApprovals }) => (
+              <TableRow key={course.id}>
+                <TableCell className="font-medium whitespace-nowrap">{course.name}</TableCell>
+                <TableCell className="text-muted-foreground">
+                  {gradingTypeLabel(course.gradingType)}
+                </TableCell>
+                <TableCell className="whitespace-nowrap">
                   {teachers.map(displayName).join(", ") || "Sin asignar"}
-                </dd>
-              </div>
-              <div className="flex justify-between gap-2">
-                <dt className="text-muted-foreground">Alumnos</dt>
-                <dd className="font-medium text-navy">{studentCount}</dd>
-              </div>
-            </dl>
-            <Link
-              href={`/admin/students?course=${course.id}`}
-              className="mt-4 inline-flex items-center gap-1 text-sm font-semibold text-celeste-strong hover:underline"
-            >
-              Ver alumnos <ArrowRight className="size-4" aria-hidden />
-            </Link>
-          </li>
-        ))}
-      </ul>
+                </TableCell>
+                <TableCell className="text-right tabular-nums">{studentCount}</TableCell>
+                <TableCell>
+                  {pendingApprovals > 0 ? (
+                    <StatusBadge tone="warning" dot>
+                      {pendingApprovals} por aprobar
+                    </StatusBadge>
+                  ) : (
+                    <StatusBadge tone="success" dot>
+                      Al día
+                    </StatusBadge>
+                  )}
+                </TableCell>
+                <TableCell className="text-right">
+                  <Link
+                    href={`/admin/students?course=${course.id}`}
+                    className="inline-flex items-center gap-1 text-sm font-medium whitespace-nowrap text-primary hover:underline"
+                  >
+                    Ver alumnos <ArrowRight className="size-3.5" aria-hidden />
+                  </Link>
+                </TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
+      </TableCard>
     </section>
   );
 }

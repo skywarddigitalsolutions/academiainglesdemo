@@ -2,12 +2,24 @@
 
 import Link from "next/link";
 import { useParams } from "next/navigation";
+import { useMemo, useState } from "react";
 import { ChevronRight } from "lucide-react";
 import type { CourseRoster as Roster } from "@/application/teacher-use-cases";
+import { EmptyState } from "@/components/feedback/empty-state";
 import { ErrorState } from "@/components/feedback/error-state";
 import { LoadingState } from "@/components/feedback/loading-state";
 import { PageHeader } from "@/components/layout/page-header";
 import { Button } from "@/components/ui/button";
+import { SearchInput } from "@/components/ui/search-input";
+import {
+  Table,
+  TableBody,
+  TableCard,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 import { gradingTypeLabel } from "@/domain/course";
 import { fullName } from "@/domain/student";
 import { BimesterStatusBadge } from "@/features/report-card/bimester-status-badge";
@@ -33,77 +45,97 @@ export function CourseRosterContainer() {
 /** Presentational: students of a course with their bimester statuses. */
 function CourseRosterView({ roster }: { roster: Roster }) {
   const { course, students } = roster;
+  const [query, setQuery] = useState("");
+  const filtered = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    return q === ""
+      ? students
+      : students.filter(({ student }) => fullName(student).toLowerCase().includes(q));
+  }, [students, query]);
+
   return (
     <>
       <PageHeader
         title={course.name}
-        backHref="/teacher"
-        backLabel="Mis cursos"
+        breadcrumbs={[{ label: "Mis cursos", href: "/teacher" }, { label: course.name }]}
         description={`${gradingTypeLabel(course.gradingType)} · ${course.schedule} · ${students.length} alumnos`}
       />
 
-      {/* Mobile: cards */}
-      <ul className="flex flex-col gap-3 md:hidden">
-        {students.map(({ student, statuses }) => (
-          <li key={student.id}>
-            <Link
-              href={`/teacher/students/${student.id}`}
-              className="flex items-center justify-between gap-3 rounded-xl border bg-card p-4 shadow-sm"
-            >
-              <div className="min-w-0">
-                <p className="font-semibold text-navy">{fullName(student)}</p>
-                <div className="mt-2 flex flex-wrap gap-1.5">
-                  {statuses.map((status, i) => (
-                    <span key={i} className="inline-flex items-center gap-1 text-xs">
-                      <span className="font-medium text-muted-foreground">B{i + 1}</span>
-                      <BimesterStatusBadge status={status} compact />
-                    </span>
-                  ))}
-                </div>
-              </div>
-              <ChevronRight className="size-5 shrink-0 text-muted-foreground" aria-hidden />
-            </Link>
-          </li>
-        ))}
-      </ul>
-
-      {/* Desktop: table */}
-      <div className="hidden overflow-hidden rounded-2xl border bg-card shadow-sm md:block">
-        <table className="w-full text-sm">
-          <thead className="bg-muted/70 text-left">
-            <tr>
-              <th scope="col" className="px-4 py-3 font-semibold text-navy">
-                Alumno/a
-              </th>
-              {[1, 2, 3, 4].map((n) => (
-                <th key={n} scope="col" className="px-3 py-3 text-center font-semibold text-navy">
-                  {n}° Bim.
-                </th>
-              ))}
-              <th scope="col" className="px-4 py-3">
-                <span className="sr-only">Acciones</span>
-              </th>
-            </tr>
-          </thead>
-          <tbody>
-            {students.map(({ student, statuses }) => (
-              <tr key={student.id} className="border-t hover:bg-celeste-light/40">
-                <td className="px-4 py-3 font-medium text-navy">{fullName(student)}</td>
-                {statuses.map((status, i) => (
-                  <td key={i} className="px-3 py-3 text-center">
-                    <BimesterStatusBadge status={status} compact />
-                  </td>
-                ))}
-                <td className="px-4 py-3 text-right">
-                  <Button asChild variant="outline" size="sm">
-                    <Link href={`/teacher/students/${student.id}`}>Abrir boletín</Link>
-                  </Button>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+      <div className="mb-4">
+        <SearchInput
+          aria-label="Buscar alumno"
+          placeholder="Buscar alumno"
+          value={query}
+          onChange={(e) => setQuery(e.target.value)}
+        />
       </div>
+
+      {filtered.length === 0 ? (
+        <EmptyState title="No se encontraron alumnos" />
+      ) : (
+        <>
+          {/* Mobile: list */}
+          <ul className="divide-y rounded-lg border bg-card shadow-xs md:hidden">
+            {filtered.map(({ student, statuses }) => (
+              <li key={student.id}>
+                <Link
+                  href={`/teacher/students/${student.id}`}
+                  className="flex items-center justify-between gap-3 p-4"
+                >
+                  <div className="min-w-0">
+                    <p className="font-medium">{fullName(student)}</p>
+                    <div className="mt-2 flex flex-wrap gap-1.5">
+                      {statuses.map((status, i) => (
+                        <span key={i} className="inline-flex items-center gap-1 text-xs">
+                          <span className="text-muted-foreground">B{i + 1}</span>
+                          <BimesterStatusBadge status={status} compact />
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                  <ChevronRight className="size-4 shrink-0 text-slate-400" aria-hidden />
+                </Link>
+              </li>
+            ))}
+          </ul>
+
+          {/* Desktop: table */}
+          <TableCard className="hidden md:block">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Alumno/a</TableHead>
+                  {[1, 2, 3, 4].map((n) => (
+                    <TableHead key={n} className="text-center">
+                      {n}° Bim.
+                    </TableHead>
+                  ))}
+                  <TableHead>
+                    <span className="sr-only">Acciones</span>
+                  </TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {filtered.map(({ student, statuses }) => (
+                  <TableRow key={student.id}>
+                    <TableCell className="font-medium">{fullName(student)}</TableCell>
+                    {statuses.map((status, i) => (
+                      <TableCell key={i} className="text-center">
+                        <BimesterStatusBadge status={status} compact />
+                      </TableCell>
+                    ))}
+                    <TableCell className="text-right">
+                      <Button asChild variant="outline" size="sm">
+                        <Link href={`/teacher/students/${student.id}`}>Abrir boletín</Link>
+                      </Button>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </TableCard>
+        </>
+      )}
     </>
   );
 }

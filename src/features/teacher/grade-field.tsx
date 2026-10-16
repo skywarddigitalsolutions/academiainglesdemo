@@ -56,7 +56,7 @@ export function ConceptualSelect({
       onValueChange={(v) => onChange(v === NONE ? "" : v)}
       disabled={disabled}
     >
-      <SelectTrigger id={id} className="h-11 w-full">
+      <SelectTrigger id={id} className="h-10 w-full">
         <SelectValue placeholder={placeholder} />
       </SelectTrigger>
       <SelectContent>
@@ -108,13 +108,13 @@ export function GradeField({
           value={value}
           onChange={(e) => onChange(e.target.value)}
           disabled={disabled}
-          className="h-11"
+          className="h-10"
           aria-describedby={belowPass ? `${id}-hint` : undefined}
         />
       )}
       {hint && <p className="text-xs text-muted-foreground">{hint}</p>}
       {belowPass && (
-        <p id={`${id}-hint`} className="flex items-center gap-1 text-xs text-warning">
+        <p id={`${id}-hint`} className="flex items-center gap-1 text-xs text-danger">
           <AlertTriangle className="size-3.5" aria-hidden />
           Por debajo de {PASS_MARK}. Solo es una referencia: la decisión es del docente.
         </p>

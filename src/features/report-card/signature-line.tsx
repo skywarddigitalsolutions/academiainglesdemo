@@ -17,11 +17,11 @@ export function SignatureLine({
       {signature.signed ? (
         <CheckCircle2 className="mt-0.5 size-4 shrink-0 text-success" aria-hidden />
       ) : (
-        <Circle className="mt-0.5 size-4 shrink-0 text-muted-foreground/60" aria-hidden />
+        <Circle className="mt-0.5 size-4 shrink-0 text-slate-300" aria-hidden />
       )}
       <div>
-        <p className="font-medium text-navy">{label}</p>
-        <p className={cn(signature.signed ? "text-foreground" : "text-muted-foreground")}>
+        <p className="font-medium text-foreground">{label}</p>
+        <p className={cn(signature.signed ? "text-slate-700" : "text-muted-foreground")}>
           {signature.signed ? formatDateTime(signature.at) : pendingText}
         </p>
       </div>

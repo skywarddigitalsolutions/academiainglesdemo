@@ -9,6 +9,7 @@ import { ErrorState } from "@/components/feedback/error-state";
 import { LoadingState } from "@/components/feedback/loading-state";
 import { PageHeader } from "@/components/layout/page-header";
 import { Button } from "@/components/ui/button";
+import { StatusBadge } from "@/components/ui/status-badge";
 import type { BimesterNumber } from "@/domain/report-card";
 import { ReportCardSheet, type SheetBimester } from "@/features/report-card/report-card-sheet";
 import { errorMessage } from "@/lib/error-message";
@@ -58,11 +59,13 @@ function ParentReportCardView({
     <>
       <PageHeader
         title={`Boletín de ${student.firstName}`}
-        backHref="/parent"
-        backLabel="Mis hijos"
+        breadcrumbs={[
+          { label: "Mis hijos", href: "/parent" },
+          { label: `${student.firstName} ${student.lastName}` },
+        ]}
         description="Solo se muestran los bimestres aprobados por Dirección."
         actions={
-          <Button variant="outline" size="lg" onClick={() => window.print()}>
+          <Button variant="outline" onClick={() => window.print()}>
             <Printer aria-hidden />
             Imprimir
           </Button>
@@ -86,24 +89,18 @@ function ParentReportCardView({
 }
 
 function ParentBadge({ bimester }: { bimester: SheetBimester }) {
-  if (!bimester.visible) {
-    return (
-      <span className="rounded-full bg-muted px-2 py-0.5 text-xs font-medium text-muted-foreground">
-        Pendiente
-      </span>
-    );
-  }
+  if (!bimester.visible) return <StatusBadge>Pendiente</StatusBadge>;
   if (bimester.data?.signatures.parent.signed) {
     return (
-      <span className="rounded-full bg-success-bg px-2 py-0.5 text-xs font-medium text-success">
+      <StatusBadge tone="success" dot>
         Leído
-      </span>
+      </StatusBadge>
     );
   }
   return (
-    <span className="rounded-full bg-warning-bg px-2 py-0.5 text-xs font-semibold text-warning">
+    <StatusBadge tone="warning" dot>
       Nuevo
-    </span>
+    </StatusBadge>
   );
 }
 
@@ -127,8 +124,7 @@ function AcknowledgeAction({
   }
   return (
     <Button
-      size="lg"
-      className="w-full font-semibold sm:w-auto"
+      className="w-full sm:w-auto"
       disabled={busy}
       onClick={async () => {
         setBusy(true);

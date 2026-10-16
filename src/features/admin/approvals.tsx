@@ -5,6 +5,7 @@ import { useState } from "react";
 import { CheckCheck, CheckCircle2, Eye, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import type { PendingApproval } from "@/application/admin-use-cases";
+import { EmptyState } from "@/components/feedback/empty-state";
 import { ErrorState } from "@/components/feedback/error-state";
 import { LoadingState } from "@/components/feedback/loading-state";
 import { PageHeader } from "@/components/layout/page-header";
@@ -20,6 +21,15 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
+import {
+  Table,
+  TableBody,
+  TableCard,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 import { fullName } from "@/domain/student";
 import { GradeText } from "@/features/report-card/grade-text";
 import { errorMessage } from "@/lib/error-message";
@@ -57,7 +67,7 @@ export function Approvals() {
     <>
       <PageHeader
         title="Aprobaciones pendientes"
-        description="Bimestres firmados por los docentes. Al aprobarlos, se publican a las familias."
+        description="Bimestres firmados por los profesores. Al aprobarlos, se publican a las familias."
         actions={
           data && data.length > 0 ? (
             <ApproveAllButton
@@ -96,7 +106,7 @@ function ApproveAllButton({
   return (
     <AlertDialog>
       <AlertDialogTrigger asChild>
-        <Button size="lg" className="font-semibold" disabled={disabled}>
+        <Button disabled={disabled}>
           {busy ? <Loader2 className="animate-spin" aria-hidden /> : <CheckCheck aria-hidden />}
           Aprobar todos ({count})
         </Button>
@@ -129,13 +139,11 @@ function PendingList({
 }) {
   if (items.length === 0) {
     return (
-      <div className="flex flex-col items-center gap-2 rounded-2xl border bg-card px-6 py-12 text-center">
-        <CheckCircle2 className="size-10 text-success" aria-hidden />
-        <p className="font-heading text-xl text-navy">No hay bimestres pendientes</p>
-        <p className="text-sm text-muted-foreground">
-          Todos los bimestres firmados por los docentes ya fueron aprobados.
-        </p>
-      </div>
+      <EmptyState
+        icon={CheckCircle2}
+        title="No hay bimestres pendientes"
+        description="Todos los bimestres firmados por los profesores ya fueron aprobados."
+      />
     );
   }
 
@@ -147,70 +155,77 @@ function PendingList({
         const group = items.filter((i) => i.course.id === course.id);
         return (
           <section key={course.id}>
-            <h2 className="mb-1 text-xl font-semibold">{course.name}</h2>
-            <p className="mb-3 text-sm text-muted-foreground">
-              Docente: {group[0].teacherNames.join(", ") || "—"} · {group.length} pendientes
-            </p>
-            <ul className="grid gap-3 lg:grid-cols-2">
-              {group.map((item) => {
-                const key = `${item.student.id}:${item.bimester}`;
-                return (
-                  <li key={key} className="flex flex-col gap-3 rounded-2xl border bg-card p-4 shadow-sm">
-                    <div className="flex flex-wrap items-start justify-between gap-2">
-                      <div>
-                        <p className="font-semibold text-navy">{fullName(item.student)}</p>
-                        <p className="text-xs text-muted-foreground">
-                          {bimesterLabel(item.bimester)} · Firmado el{" "}
+            <div className="mb-3 flex flex-wrap items-baseline justify-between gap-2">
+              <h2 className="text-sm font-semibold">{course.name}</h2>
+              <p className="text-sm text-muted-foreground">
+                Profesor/a: {group[0].teacherNames.join(", ") || "—"} · {group.length} pendientes
+              </p>
+            </div>
+            <TableCard>
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Alumno/a</TableHead>
+                    <TableHead>Bimestre</TableHead>
+                    <TableHead className="text-center">Aplicación</TableHead>
+                    <TableHead className="text-center">Conducta</TableHead>
+                    <TableHead className="text-center">Faltas</TableHead>
+                    <TableHead>Firmado</TableHead>
+                    <TableHead>
+                      <span className="sr-only">Acciones</span>
+                    </TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {group.map((item) => {
+                    const key = `${item.student.id}:${item.bimester}`;
+                    return (
+                      <TableRow key={key}>
+                        <TableCell className="max-w-72">
+                          <p className="font-medium whitespace-nowrap">{fullName(item.student)}</p>
+                          {item.data.observation && (
+                            <p className="truncate text-xs text-muted-foreground" title={item.data.observation}>
+                              {item.data.observation}
+                            </p>
+                          )}
+                        </TableCell>
+                        <TableCell className="whitespace-nowrap">{bimesterLabel(item.bimester)}</TableCell>
+                        <TableCell className="text-center tabular-nums">
+                          <GradeText value={item.data.applicationGrade} />
+                        </TableCell>
+                        <TableCell className="text-center">{item.data.conductGrade ?? "—"}</TableCell>
+                        <TableCell className="text-center tabular-nums">{item.data.absences}</TableCell>
+                        <TableCell className="text-xs whitespace-nowrap text-muted-foreground">
                           {formatDateTime(item.data.signatures.teacher.at)}
-                        </p>
-                      </div>
-                      <dl className="flex gap-4 text-sm">
-                        <div>
-                          <dt className="text-xs text-muted-foreground">Aplicación</dt>
-                          <dd className="font-semibold text-navy">
-                            <GradeText value={item.data.applicationGrade} />
-                          </dd>
-                        </div>
-                        <div>
-                          <dt className="text-xs text-muted-foreground">Conducta</dt>
-                          <dd className="font-semibold text-navy">{item.data.conductGrade}</dd>
-                        </div>
-                        <div>
-                          <dt className="text-xs text-muted-foreground">Faltas</dt>
-                          <dd className="font-semibold text-navy">{item.data.absences}</dd>
-                        </div>
-                      </dl>
-                    </div>
-                    {item.data.observation && (
-                      <p className="line-clamp-2 text-sm text-muted-foreground">
-                        “{item.data.observation}”
-                      </p>
-                    )}
-                    <div className="flex flex-col gap-2 border-t pt-3 sm:flex-row sm:justify-end">
-                      <Button asChild variant="outline" size="lg">
-                        <Link href={`/admin/report-cards/${item.student.id}`}>
-                          <Eye aria-hidden />
-                          Ver boletín
-                        </Link>
-                      </Button>
-                      <Button
-                        size="lg"
-                        className="font-semibold"
-                        disabled={busyKey !== null}
-                        onClick={() => onApprove(item)}
-                      >
-                        {busyKey === key ? (
-                          <Loader2 className="animate-spin" aria-hidden />
-                        ) : (
-                          <CheckCheck aria-hidden />
-                        )}
-                        Aprobar
-                      </Button>
-                    </div>
-                  </li>
-                );
-              })}
-            </ul>
+                        </TableCell>
+                        <TableCell>
+                          <div className="flex justify-end gap-2">
+                            <Button asChild variant="outline" size="sm">
+                              <Link href={`/admin/report-cards/${item.student.id}`}>
+                                <Eye aria-hidden />
+                                Ver
+                              </Link>
+                            </Button>
+                            <Button
+                              size="sm"
+                              disabled={busyKey !== null}
+                              onClick={() => onApprove(item)}
+                            >
+                              {busyKey === key ? (
+                                <Loader2 className="animate-spin" aria-hidden />
+                              ) : (
+                                <CheckCheck aria-hidden />
+                              )}
+                              Aprobar
+                            </Button>
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })}
+                </TableBody>
+              </Table>
+            </TableCard>
           </section>
         );
       })}

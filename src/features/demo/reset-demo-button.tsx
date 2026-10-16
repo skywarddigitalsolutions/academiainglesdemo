@@ -21,9 +21,11 @@ import { useSession } from "@/providers/session-provider";
 export function ResetDemoButton({
   className,
   variant = "ghost",
+  iconOnly = false,
 }: {
   className?: string;
   variant?: "ghost" | "outline";
+  iconOnly?: boolean;
 }) {
   const { resetDemo } = useSession();
   const [busy, setBusy] = useState(false);
@@ -41,9 +43,14 @@ export function ResetDemoButton({
   return (
     <AlertDialog>
       <AlertDialogTrigger asChild>
-        <Button variant={variant} size="lg" className={cn(className)} disabled={busy}>
+        <Button
+          variant={variant}
+          className={cn(className)}
+          disabled={busy}
+          title={iconOnly ? "Reiniciar demo" : undefined}
+        >
           <RotateCcw aria-hidden />
-          Reiniciar demo
+          {iconOnly ? <span className="sr-only">Reiniciar demo</span> : "Reiniciar demo"}
         </Button>
       </AlertDialogTrigger>
       <AlertDialogContent>

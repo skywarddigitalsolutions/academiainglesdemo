@@ -1,14 +1,10 @@
-import { AppShell } from "@/components/layout/app-shell";
 import { RoleGuard } from "@/features/auth/role-guard";
-
-const NAV = [{ href: "/parent", label: "Mis hijos" }];
+import { ParentShell } from "@/features/parent/parent-shell";
 
 export default function ParentLayout({ children }: LayoutProps<"/parent">) {
   return (
     <RoleGuard role="parent">
-      <AppShell role="parent" nav={NAV}>
-        {children}
-      </AppShell>
+      <ParentShell>{children}</ParentShell>
     </RoleGuard>
   );
 }

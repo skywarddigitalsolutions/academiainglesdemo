@@ -3,9 +3,10 @@
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { useMemo, useState, type FormEvent } from "react";
-import { FileText, Loader2, Pencil, Plus, Search, Trash2 } from "lucide-react";
+import { FileText, Loader2, Pencil, Plus, Trash2, Users } from "lucide-react";
 import { toast } from "sonner";
 import type { StudentListItem } from "@/application/admin-use-cases";
+import { EmptyState } from "@/components/feedback/empty-state";
 import { ErrorState } from "@/components/feedback/error-state";
 import { LoadingState } from "@/components/feedback/loading-state";
 import { PageHeader } from "@/components/layout/page-header";
@@ -21,6 +22,7 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { SearchInput } from "@/components/ui/search-input";
 import {
   Select,
   SelectContent,
@@ -28,6 +30,15 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import {
+  Table,
+  TableBody,
+  TableCard,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 import type { Course } from "@/domain/course";
 import { MAX_GUARDIANS, fullName } from "@/domain/student";
 import { displayName, type User } from "@/domain/user";
@@ -92,8 +103,6 @@ export function StudentsAdmin() {
         description="Alta, edición y vínculo con las familias responsables."
         actions={
           <Button
-            size="lg"
-            className="font-semibold"
             disabled={!data}
             onClick={() =>
               setForm({
@@ -114,21 +123,14 @@ export function StudentsAdmin() {
       {data && (
         <>
           <div className="mb-4 flex flex-col gap-2 sm:flex-row">
-            <div className="relative flex-1">
-              <Search
-                className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground"
-                aria-hidden
-              />
-              <Input
-                aria-label="Buscar alumno"
-                placeholder="Buscar por nombre o apellido"
-                value={query}
-                onChange={(e) => setQuery(e.target.value)}
-                className="h-11 pl-9"
-              />
-            </div>
+            <SearchInput
+              aria-label="Buscar alumno"
+              placeholder="Buscar por nombre o apellido"
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+            />
             <Select value={courseFilter} onValueChange={setCourseFilter}>
-              <SelectTrigger aria-label="Filtrar por curso" className="h-11 w-full sm:w-56">
+              <SelectTrigger aria-label="Filtrar por curso" className="h-9 w-full bg-card sm:w-52">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
@@ -182,49 +184,74 @@ function StudentTable({
   onDelete: (item: StudentListItem) => Promise<void>;
 }) {
   if (items.length === 0) {
-    return <p className="rounded-xl border bg-card p-6 text-sm text-muted-foreground">No se encontraron alumnos.</p>;
+    return <EmptyState icon={Users} title="No se encontraron alumnos" />;
   }
   return (
-    <ul className="overflow-hidden rounded-2xl border bg-card shadow-sm">
-      {items.map((item) => (
-        <li
-          key={item.student.id}
-          className="flex flex-col gap-3 border-b p-4 last:border-b-0 md:flex-row md:items-center md:justify-between"
-        >
-          <div className="min-w-0">
-            <p className="font-semibold text-navy">{fullName(item.student)}</p>
-            <p className="text-sm text-muted-foreground">
-              {item.course?.name ?? "Sin curso"} ·{" "}
-              {item.guardians.length > 0
-                ? `Responsables: ${item.guardians.map(displayName).join(", ")}`
-                : "Sin responsables vinculados"}
-            </p>
-          </div>
-          <div className="flex flex-wrap gap-2">
-            <Button asChild variant="outline" size="lg">
-              <Link href={`/admin/report-cards/${item.student.id}`}>
-                <FileText aria-hidden />
-                Boletín
-              </Link>
-            </Button>
-            <Button variant="outline" size="lg" onClick={() => onEdit(item)}>
-              <Pencil aria-hidden />
-              Editar
-            </Button>
-            <ConfirmDelete
-              title={`¿Eliminar a ${fullName(item.student)}?`}
-              description="Se eliminará el alumno y su boletín del ciclo lectivo. Esta acción no se puede deshacer."
-              onConfirm={() => onDelete(item)}
-            >
-              <Button variant="destructive" size="lg">
-                <Trash2 aria-hidden />
-                <span className="sr-only md:not-sr-only">Eliminar</span>
-              </Button>
-            </ConfirmDelete>
-          </div>
-        </li>
-      ))}
-    </ul>
+    <TableCard>
+      <Table>
+        <TableHeader>
+          <TableRow>
+            <TableHead>Alumno/a</TableHead>
+            <TableHead>Curso</TableHead>
+            <TableHead>Responsables</TableHead>
+            <TableHead>
+              <span className="sr-only">Acciones</span>
+            </TableHead>
+          </TableRow>
+        </TableHeader>
+        <TableBody>
+          {items.map((item) => (
+            <TableRow key={item.student.id}>
+              <TableCell className="font-medium whitespace-nowrap">
+                {item.student.lastName}, {item.student.firstName}
+              </TableCell>
+              <TableCell className="whitespace-nowrap text-muted-foreground">
+                {item.course?.name ?? "Sin curso"}
+              </TableCell>
+              <TableCell className="text-muted-foreground">
+                {item.guardians.length > 0
+                  ? item.guardians.map(displayName).join(", ")
+                  : "Sin responsables vinculados"}
+              </TableCell>
+              <TableCell>
+                <div className="flex justify-end gap-1">
+                  <Button asChild variant="outline" size="sm">
+                    <Link href={`/admin/report-cards/${item.student.id}`}>
+                      <FileText aria-hidden />
+                      Boletín
+                    </Link>
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="icon-sm"
+                    onClick={() => onEdit(item)}
+                    aria-label={`Editar a ${fullName(item.student)}`}
+                    title="Editar"
+                  >
+                    <Pencil aria-hidden />
+                  </Button>
+                  <ConfirmDelete
+                    title={`¿Eliminar a ${fullName(item.student)}?`}
+                    description="Se eliminará el alumno y su boletín del ciclo lectivo. Esta acción no se puede deshacer."
+                    onConfirm={() => onDelete(item)}
+                  >
+                    <Button
+                      variant="ghost"
+                      size="icon-sm"
+                      className="text-muted-foreground hover:bg-danger-soft hover:text-danger"
+                      aria-label={`Eliminar a ${fullName(item.student)}`}
+                      title="Eliminar"
+                    >
+                      <Trash2 aria-hidden />
+                    </Button>
+                  </ConfirmDelete>
+                </div>
+              </TableCell>
+            </TableRow>
+          ))}
+        </TableBody>
+      </Table>
+    </TableCard>
   );
 }
 
@@ -286,7 +313,7 @@ function StudentDialog({
                 id="st-first"
                 value={form.firstName}
                 onChange={(e) => setForm({ ...form, firstName: e.target.value })}
-                className="h-11"
+                className="h-10"
                 required
               />
             </div>
@@ -296,7 +323,7 @@ function StudentDialog({
                 id="st-last"
                 value={form.lastName}
                 onChange={(e) => setForm({ ...form, lastName: e.target.value })}
-                className="h-11"
+                className="h-10"
                 required
               />
             </div>
@@ -304,7 +331,7 @@ function StudentDialog({
           <div className="flex flex-col gap-1.5">
             <Label htmlFor="st-course">Curso</Label>
             <Select value={form.courseId} onValueChange={(courseId) => setForm({ ...form, courseId })}>
-              <SelectTrigger id="st-course" className="h-11 w-full">
+              <SelectTrigger id="st-course" className="h-10 w-full">
                 <SelectValue placeholder="Seleccionar curso" />
               </SelectTrigger>
               <SelectContent>
@@ -349,10 +376,10 @@ function StudentDialog({
             </p>
           )}
           <DialogFooter>
-            <Button type="button" variant="outline" size="lg" onClick={onClose}>
+            <Button type="button" variant="outline" onClick={onClose}>
               Cancelar
             </Button>
-            <Button type="submit" size="lg" className="font-semibold" disabled={busy}>
+            <Button type="submit" disabled={busy}>
               {busy && <Loader2 className="animate-spin" aria-hidden />}
               Guardar
             </Button>

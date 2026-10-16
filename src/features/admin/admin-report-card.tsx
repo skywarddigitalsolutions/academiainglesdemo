@@ -96,11 +96,13 @@ function AdminReportCardView({
     <>
       <PageHeader
         title={fullName(student)}
-        backHref="/admin/students"
-        backLabel="Alumnos"
+        breadcrumbs={[
+          { label: "Alumnos", href: "/admin/students" },
+          { label: fullName(student) },
+        ]}
         description={`Vista de Dirección · ${course.name} · Se muestran todos los bimestres, incluso los no publicados.`}
         actions={
-          <Button variant="outline" size="lg" onClick={() => window.print()}>
+          <Button variant="outline" onClick={() => window.print()}>
             <Printer aria-hidden />
             Imprimir
           </Button>
@@ -147,8 +149,7 @@ function ActionButton({
   const [busy, setBusy] = useState(false);
   return (
     <Button
-      size="lg"
-      className="w-full font-semibold sm:w-auto"
+      className="w-full sm:w-auto"
       disabled={busy}
       onClick={async () => {
         setBusy(true);

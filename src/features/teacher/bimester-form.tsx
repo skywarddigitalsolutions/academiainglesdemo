@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, type FormEvent } from "react";
+import { useState, type FormEvent, type ReactNode } from "react";
 import { Loader2, Lock, PenLine, Save, Unlock } from "lucide-react";
 import {
   AlertDialog,
@@ -29,6 +29,7 @@ import { SignatureLine } from "@/features/report-card/signature-line";
 import { bimesterLabel } from "@/lib/format";
 import type { EditorActions } from "./report-card-editor";
 import { ConceptualSelect, GradeField, draftToGrade, gradeToDraft } from "./grade-field";
+import { SaveBar } from "./save-bar";
 
 interface Draft {
   applicationGrade: string;
@@ -56,6 +57,8 @@ function toPatch(draft: Draft, type: GradingType): BimesterPatch {
   };
 }
 
+const CARD = "rounded-lg border bg-card p-5 shadow-xs sm:p-6";
+
 export function BimesterForm({
   bimester,
   gradingType,
@@ -73,6 +76,7 @@ export function BimesterForm({
   const saved = toDraft(bimester);
   const dirty = (Object.keys(draft) as (keyof Draft)[]).some((k) => draft[k] !== saved[k]);
   const idPrefix = `b${bimester.number}`;
+  const title = bimesterLabel(bimester.number);
 
   const set = (field: keyof Draft) => (value: string) =>
     setDraft((d) => ({ ...d, [field]: value }));
@@ -93,95 +97,90 @@ export function BimesterForm({
     );
   }
 
-  return (
-    <section className="rounded-2xl border bg-card p-4 shadow-sm sm:p-6">
-      <div className="mb-5 flex flex-wrap items-center justify-between gap-2">
-        <h2 className="text-xl font-semibold">{bimesterLabel(bimester.number)}</h2>
-        <BimesterStatusBadge status={status} />
-      </div>
-
-      {locked ? (
-        <div className="flex flex-col gap-5">
-          <div className="flex items-start gap-2 rounded-xl bg-muted px-4 py-3 text-sm text-muted-foreground">
-            <Lock className="mt-0.5 size-4 shrink-0" aria-hidden />
-            <p>
-              {approved
-                ? "Bimestre aprobado por Dirección y publicado a la familia. No puede modificarse."
-                : "Bimestre firmado. Está esperando la aprobación de Dirección. Puede reabrirlo si necesita corregir algo."}
-            </p>
-          </div>
-          <dl className="grid grid-cols-2 gap-4 text-sm sm:grid-cols-3">
-            <div>
-              <dt className="text-xs text-muted-foreground">Nota de aplicación</dt>
-              <dd className="text-lg font-semibold text-navy">
-                <GradeText value={bimester.applicationGrade} />
-              </dd>
-            </div>
-            <div>
-              <dt className="text-xs text-muted-foreground">Conducta</dt>
-              <dd className="text-lg font-semibold text-navy">
-                <GradeText value={bimester.conductGrade} />
-              </dd>
-            </div>
-            <div>
-              <dt className="text-xs text-muted-foreground">Inasistencias</dt>
-              <dd className="text-lg font-semibold text-navy">{bimester.absences}</dd>
-            </div>
-            <div className="col-span-2 sm:col-span-3">
-              <dt className="text-xs text-muted-foreground">Observación</dt>
-              <dd className="mt-1 leading-relaxed">{bimester.observation || "Sin observaciones."}</dd>
-            </div>
-          </dl>
-          <Signatures bimester={bimester} />
-          {!approved && (
-            <div>
-              <Button
-                variant="outline"
-                size="lg"
-                disabled={busy !== null}
-                onClick={() =>
-                  void withBusy("reopen", () => actions.reopenBimester(bimester.number))
-                }
-              >
-                {busy === "reopen" ? <Loader2 className="animate-spin" aria-hidden /> : <Unlock aria-hidden />}
-                Reabrir para editar
-              </Button>
-            </div>
-          )}
+  if (locked) {
+    return (
+      <section className={CARD}>
+        <CardHeader title={title} badge={<BimesterStatusBadge status={status} />} />
+        <div className="mb-6 flex items-start gap-2 rounded-md border bg-slate-50 px-4 py-3 text-sm text-slate-600">
+          <Lock className="mt-0.5 size-4 shrink-0" aria-hidden />
+          <p>
+            {approved
+              ? "Bimestre aprobado por Dirección y publicado a la familia. No puede modificarse."
+              : "Bimestre firmado. Está esperando la aprobación de Dirección. Puede reabrirlo si necesita corregir algo."}
+          </p>
         </div>
-      ) : (
-        <form onSubmit={handleSave} className="flex flex-col gap-5">
-          <div className="grid gap-4 sm:grid-cols-3">
-            <GradeField
-              id={`${idPrefix}-application`}
-              label="Nota de aplicación"
-              gradingType={gradingType}
-              value={draft.applicationGrade}
-              onChange={set("applicationGrade")}
+        <dl className="grid gap-x-6 gap-y-5 text-sm md:grid-cols-2">
+          <ReadOnly label="Nota de aplicación">
+            <GradeText value={bimester.applicationGrade} />
+          </ReadOnly>
+          <ReadOnly label="Conducta">
+            <GradeText value={bimester.conductGrade} />
+          </ReadOnly>
+          <ReadOnly label="Inasistencias">{bimester.absences}</ReadOnly>
+          <div className="md:col-span-2">
+            <dt className="text-xs text-muted-foreground">Observación</dt>
+            <dd className="mt-1 leading-relaxed text-slate-700">
+              {bimester.observation || "Sin observaciones."}
+            </dd>
+          </div>
+        </dl>
+        <Signatures bimester={bimester} className="mt-6 border-t pt-6" />
+        {!approved && (
+          <div className="mt-6 border-t pt-6">
+            <Button
+              variant="outline"
+              disabled={busy !== null}
+              onClick={() =>
+                void withBusy("reopen", () => actions.reopenBimester(bimester.number))
+              }
+            >
+              {busy === "reopen" ? <Loader2 className="animate-spin" aria-hidden /> : <Unlock aria-hidden />}
+              Reabrir para editar
+            </Button>
+          </div>
+        )}
+      </section>
+    );
+  }
+
+  return (
+    <div className="flex flex-col gap-6">
+      <form onSubmit={handleSave} className={CARD}>
+        <CardHeader
+          title={title}
+          description="Calificaciones, inasistencias y observación del bimestre."
+          badge={<BimesterStatusBadge status={status} />}
+        />
+        <div className="grid gap-x-6 gap-y-5 md:grid-cols-2">
+          <GradeField
+            id={`${idPrefix}-application`}
+            label="Nota de aplicación"
+            gradingType={gradingType}
+            value={draft.applicationGrade}
+            onChange={set("applicationGrade")}
+          />
+          <div className="flex flex-col gap-1.5">
+            <Label htmlFor={`${idPrefix}-conduct`}>Conducta</Label>
+            <ConceptualSelect
+              id={`${idPrefix}-conduct`}
+              value={draft.conductGrade}
+              onChange={set("conductGrade")}
             />
-            <div className="flex flex-col gap-1.5">
-              <Label htmlFor={`${idPrefix}-conduct`}>Conducta</Label>
-              <ConceptualSelect
-                id={`${idPrefix}-conduct`}
-                value={draft.conductGrade}
-                onChange={set("conductGrade")}
-              />
-            </div>
-            <div className="flex flex-col gap-1.5">
-              <Label htmlFor={`${idPrefix}-absences`}>Inasistencias</Label>
-              <Input
-                id={`${idPrefix}-absences`}
-                type="number"
-                inputMode="numeric"
-                min={0}
-                step={1}
-                value={draft.absences}
-                onChange={(e) => set("absences")(e.target.value)}
-                className="h-11"
-              />
-            </div>
           </div>
           <div className="flex flex-col gap-1.5">
+            <Label htmlFor={`${idPrefix}-absences`}>Inasistencias</Label>
+            <Input
+              id={`${idPrefix}-absences`}
+              type="number"
+              inputMode="numeric"
+              min={0}
+              step={1}
+              value={draft.absences}
+              onChange={(e) => set("absences")(e.target.value)}
+              className="h-10"
+            />
+          </div>
+          <div className="flex flex-col gap-1.5 md:col-span-2">
             <Label htmlFor={`${idPrefix}-observation`}>Observación para el alumno y la familia</Label>
             <Textarea
               id={`${idPrefix}-observation`}
@@ -191,65 +190,103 @@ export function BimesterForm({
               value={draft.observation}
               onChange={(e) => set("observation")(e.target.value)}
             />
-            <p className="text-right text-xs text-muted-foreground">
+            <p className="text-right text-xs text-muted-foreground tabular-nums">
               {draft.observation.length}/600
             </p>
           </div>
+        </div>
 
-          <Signatures bimester={bimester} />
+        <SaveBar dirty={dirty} saving={busy === "save"}>
+          <Button type="submit" disabled={busy !== null || !dirty}>
+            {busy === "save" ? <Loader2 className="animate-spin" aria-hidden /> : <Save aria-hidden />}
+            Guardar cambios
+          </Button>
+        </SaveBar>
+      </form>
 
-          <div className="flex flex-col-reverse gap-2 border-t pt-4 sm:flex-row sm:items-center sm:justify-between">
-            <p className="text-xs text-muted-foreground" aria-live="polite">
-              {dirty ? "Hay cambios sin guardar." : "Sin cambios pendientes."}
+      <section className={CARD}>
+        <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+          <div>
+            <h3 className="text-base font-semibold">Firmar y cerrar el bimestre</h3>
+            <p className="mt-1 max-w-xl text-sm text-muted-foreground">
+              Al firmar se guardan los cambios y el bimestre queda cerrado. Dirección
+              debe aprobarlo para que la familia pueda verlo.
             </p>
-            <div className="flex flex-col gap-2 sm:flex-row">
-              <Button type="submit" variant="outline" size="lg" disabled={busy !== null || !dirty}>
-                {busy === "save" ? <Loader2 className="animate-spin" aria-hidden /> : <Save aria-hidden />}
-                Guardar borrador
-              </Button>
-              <AlertDialog>
-                <AlertDialogTrigger asChild>
-                  <Button type="button" size="lg" className="font-semibold" disabled={busy !== null}>
-                    {busy === "sign" ? <Loader2 className="animate-spin" aria-hidden /> : <PenLine aria-hidden />}
-                    Firmar y cerrar bimestre
-                  </Button>
-                </AlertDialogTrigger>
-                <AlertDialogContent>
-                  <AlertDialogHeader>
-                    <AlertDialogTitle>¿Firmar el {bimesterLabel(bimester.number).toLowerCase()}?</AlertDialogTitle>
-                    <AlertDialogDescription>
-                      Se guardarán los cambios y el bimestre quedará cerrado. Dirección
-                      deberá aprobarlo para que la familia pueda verlo.
-                    </AlertDialogDescription>
-                  </AlertDialogHeader>
-                  <AlertDialogFooter>
-                    <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                    <AlertDialogAction
-                      onClick={() =>
-                        void withBusy("sign", () =>
-                          actions.signBimester(bimester.number, toPatch(draft, gradingType)),
-                        )
-                      }
-                    >
-                      Firmar
-                    </AlertDialogAction>
-                  </AlertDialogFooter>
-                </AlertDialogContent>
-              </AlertDialog>
-            </div>
           </div>
-        </form>
-      )}
-    </section>
+          <AlertDialog>
+            <AlertDialogTrigger asChild>
+              <Button type="button" variant="outline" className="shrink-0" disabled={busy !== null}>
+                {busy === "sign" ? <Loader2 className="animate-spin" aria-hidden /> : <PenLine aria-hidden />}
+                Firmar y cerrar bimestre
+              </Button>
+            </AlertDialogTrigger>
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle>¿Firmar el {title.toLowerCase()}?</AlertDialogTitle>
+                <AlertDialogDescription>
+                  Se guardarán los cambios y el bimestre quedará cerrado. Dirección
+                  deberá aprobarlo para que la familia pueda verlo.
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                <AlertDialogAction
+                  onClick={() =>
+                    void withBusy("sign", () =>
+                      actions.signBimester(bimester.number, toPatch(draft, gradingType)),
+                    )
+                  }
+                >
+                  Firmar
+                </AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
+        </div>
+        <Signatures bimester={bimester} className="mt-6 border-t pt-6" />
+      </section>
+    </div>
   );
 }
 
-function Signatures({ bimester }: { bimester: Bimester }) {
+function CardHeader({
+  title,
+  description,
+  badge,
+}: {
+  title: string;
+  description?: string;
+  badge: ReactNode;
+}) {
   return (
-    <div className="grid grid-cols-1 gap-3 rounded-xl border bg-background p-4 sm:grid-cols-3">
-      <SignatureLine label="Firma docente" signature={bimester.signatures.teacher} />
-      <SignatureLine label="Aprobación de Dirección" signature={bimester.signatures.director} />
-      <SignatureLine label="Familia · Leído / Notificado" signature={bimester.signatures.parent} />
+    <div className="mb-6 flex flex-wrap items-start justify-between gap-2">
+      <div>
+        <h2 className="text-base font-semibold">{title}</h2>
+        {description && <p className="mt-1 text-sm text-muted-foreground">{description}</p>}
+      </div>
+      {badge}
+    </div>
+  );
+}
+
+function ReadOnly({ label, children }: { label: string; children: ReactNode }) {
+  return (
+    <div>
+      <dt className="text-xs text-muted-foreground">{label}</dt>
+      <dd className="mt-1 text-base font-semibold tabular-nums">{children}</dd>
+    </div>
+  );
+}
+
+function Signatures({ bimester, className }: { bimester: Bimester; className?: string }) {
+  return (
+    <div className={className}>
+      <p className="mb-3 text-xs font-medium tracking-wide text-muted-foreground uppercase">Firmas</p>
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+        <SignatureLine label="Firma docente" signature={bimester.signatures.teacher} />
+        <SignatureLine label="Aprobación de Dirección" signature={bimester.signatures.director} />
+        <SignatureLine label="Familia · Leído / Notificado" signature={bimester.signatures.parent} />
+      </div>
     </div>
   );
 }

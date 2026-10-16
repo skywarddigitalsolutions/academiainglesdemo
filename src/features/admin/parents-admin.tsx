@@ -1,10 +1,11 @@
 "use client";
 
-import { useState, type FormEvent } from "react";
-import { Loader2, Mail, Pencil, Phone, Plus, Trash2 } from "lucide-react";
+import { useMemo, useState, type FormEvent } from "react";
+import { Loader2, Mail, Pencil, Phone, Plus, Trash2, UsersRound } from "lucide-react";
 import { toast } from "sonner";
 import type { ParentListItem } from "@/application/admin-use-cases";
 import { DEMO_PASSWORD } from "@/application/demo-constants";
+import { EmptyState } from "@/components/feedback/empty-state";
 import { ErrorState } from "@/components/feedback/error-state";
 import { LoadingState } from "@/components/feedback/loading-state";
 import { PageHeader } from "@/components/layout/page-header";
@@ -20,6 +21,17 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { SearchInput } from "@/components/ui/search-input";
+import { StatusBadge } from "@/components/ui/status-badge";
+import {
+  Table,
+  TableBody,
+  TableCard,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 import type { Course } from "@/domain/course";
 import { MAX_GUARDIANS, fullName, type Student } from "@/domain/student";
 import { displayName } from "@/domain/user";
@@ -62,6 +74,19 @@ export function ParentsAdmin() {
     };
   });
   const [form, setForm] = useState<FormState | null>(null);
+  const [query, setQuery] = useState("");
+
+  const filtered = useMemo(() => {
+    if (!data) return [];
+    const q = query.trim().toLowerCase();
+    if (q === "") return data.parents;
+    return data.parents.filter(({ parent, children }) =>
+      [displayName(parent), parent.username, ...children.map((c) => fullName(c))]
+        .join(" ")
+        .toLowerCase()
+        .includes(q),
+    );
+  }, [data, query]);
 
   async function handleDelete(item: ParentListItem) {
     try {
@@ -79,7 +104,7 @@ export function ParentsAdmin() {
         title="Familias"
         description="Padres, madres o tutores con acceso al boletín en línea."
         actions={
-          <Button size="lg" className="font-semibold" onClick={() => setForm(EMPTY)}>
+          <Button onClick={() => setForm(EMPTY)}>
             <Plus aria-hidden />
             Nueva familia
           </Button>
@@ -89,76 +114,110 @@ export function ParentsAdmin() {
       {error && <ErrorState message={error} />}
       {data && (
         <>
-          <ul className="grid gap-3 md:grid-cols-2">
-            {data.parents.map((item) => (
-              <li key={item.parent.id} className="flex flex-col gap-3 rounded-2xl border bg-card p-4 shadow-sm">
-                <div>
-                  <p className="font-semibold text-navy">
-                    {item.parent.lastName}, {item.parent.firstName}
-                  </p>
-                  <p className="text-xs text-muted-foreground">
-                    Usuario: <span className="font-mono">{item.parent.username}</span>
-                  </p>
-                </div>
-                <div className="flex flex-col gap-1 text-sm text-muted-foreground">
-                  {item.parent.email && (
-                    <span className="inline-flex items-center gap-2">
-                      <Mail className="size-4" aria-hidden /> {item.parent.email}
-                    </span>
-                  )}
-                  {item.parent.phone && (
-                    <span className="inline-flex items-center gap-2">
-                      <Phone className="size-4" aria-hidden /> {item.parent.phone}
-                    </span>
-                  )}
-                </div>
-                <div className="flex flex-wrap gap-1.5">
-                  {item.children.length === 0 ? (
-                    <span className="text-xs text-muted-foreground">Sin hijos vinculados</span>
-                  ) : (
-                    item.children.map((c) => (
-                      <span
-                        key={c.id}
-                        className="rounded-full bg-celeste-light px-2.5 py-0.5 text-xs font-medium text-navy"
-                      >
-                        {c.firstName} {c.lastName} · {courseName(data.courses, c)}
-                      </span>
-                    ))
-                  )}
-                </div>
-                <div className="mt-auto flex gap-2 border-t pt-3">
-                  <Button
-                    variant="outline"
-                    size="lg"
-                    onClick={() =>
-                      setForm({
-                        id: item.parent.id,
-                        firstName: item.parent.firstName,
-                        lastName: item.parent.lastName,
-                        username: item.parent.username,
-                        email: item.parent.email,
-                        phone: item.parent.phone,
-                        childIds: item.children.map((c) => c.id),
-                      })
-                    }
-                  >
-                    <Pencil aria-hidden />
-                    Editar
-                  </Button>
-                  <ConfirmDelete
-                    title={`¿Eliminar a ${displayName(item.parent)}?`}
-                    description="Se eliminará el acceso de esta familia y se desvinculará de sus hijos."
-                    onConfirm={() => handleDelete(item)}
-                  >
-                    <Button variant="destructive" size="lg">
-                      <Trash2 aria-hidden />
-                      Eliminar
-                    </Button>
-                  </ConfirmDelete>
-                </div>
-              </li>
-            ))}
-          </ul>
+          <div className="mb-4">
+            <SearchInput
+              aria-label="Buscar familia"
+              placeholder="Buscar por nombre, usuario o hijo"
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+            />
+          </div>
+          {filtered.length === 0 ? (
+            <EmptyState icon={UsersRound} title="No se encontraron familias" />
+          ) : (
+            <TableCard>
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Responsable</TableHead>
+                    <TableHead>Usuario</TableHead>
+                    <TableHead>Contacto</TableHead>
+                    <TableHead>Hijos vinculados</TableHead>
+                    <TableHead>
+                      <span className="sr-only">Acciones</span>
+                    </TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {filtered.map((item) => (
+                    <TableRow key={item.parent.id}>
+                      <TableCell className="font-medium whitespace-nowrap">
+                        {item.parent.lastName}, {item.parent.firstName}
+                      </TableCell>
+                      <TableCell className="font-mono text-xs text-muted-foreground">
+                        {item.parent.username}
+                      </TableCell>
+                      <TableCell className="text-muted-foreground">
+                        <div className="flex flex-col gap-0.5 text-xs">
+                          {item.parent.email && (
+                            <span className="inline-flex items-center gap-1.5 whitespace-nowrap">
+                              <Mail className="size-3.5" aria-hidden /> {item.parent.email}
+                            </span>
+                          )}
+                          {item.parent.phone && (
+                            <span className="inline-flex items-center gap-1.5 whitespace-nowrap">
+                              <Phone className="size-3.5" aria-hidden /> {item.parent.phone}
+                            </span>
+                          )}
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        {item.children.length === 0 ? (
+                          <span className="text-xs text-muted-foreground">Sin hijos vinculados</span>
+                        ) : (
+                          <div className="flex flex-wrap gap-1.5">
+                            {item.children.map((c) => (
+                              <StatusBadge key={c.id}>
+                                {c.firstName} {c.lastName} · {courseName(data.courses, c)}
+                              </StatusBadge>
+                            ))}
+                          </div>
+                        )}
+                      </TableCell>
+                      <TableCell>
+                        <div className="flex justify-end gap-1">
+                          <Button
+                            variant="ghost"
+                            size="icon-sm"
+                            aria-label={`Editar a ${displayName(item.parent)}`}
+                            title="Editar"
+                            onClick={() =>
+                              setForm({
+                                id: item.parent.id,
+                                firstName: item.parent.firstName,
+                                lastName: item.parent.lastName,
+                                username: item.parent.username,
+                                email: item.parent.email,
+                                phone: item.parent.phone,
+                                childIds: item.children.map((c) => c.id),
+                              })
+                            }
+                          >
+                            <Pencil aria-hidden />
+                          </Button>
+                          <ConfirmDelete
+                            title={`¿Eliminar a ${displayName(item.parent)}?`}
+                            description="Se eliminará el acceso de esta familia y se desvinculará de sus hijos."
+                            onConfirm={() => handleDelete(item)}
+                          >
+                            <Button
+                              variant="ghost"
+                              size="icon-sm"
+                              className="text-muted-foreground hover:bg-danger-soft hover:text-danger"
+                              aria-label={`Eliminar a ${displayName(item.parent)}`}
+                              title="Eliminar"
+                            >
+                              <Trash2 aria-hidden />
+                            </Button>
+                          </ConfirmDelete>
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </TableCard>
+          )}
           {form && (
             <ParentDialog
               initial={form}
@@ -279,10 +338,10 @@ function ParentDialog({
             </p>
           )}
           <DialogFooter>
-            <Button type="button" variant="outline" size="lg" onClick={onClose}>
+            <Button type="button" variant="outline" onClick={onClose}>
               Cancelar
             </Button>
-            <Button type="submit" size="lg" className="font-semibold" disabled={busy}>
+            <Button type="submit" disabled={busy}>
               {busy && <Loader2 className="animate-spin" aria-hidden />}
               Guardar
             </Button>
@@ -309,7 +368,7 @@ function Field({
   return (
     <div className="flex flex-col gap-1.5">
       <Label htmlFor={id}>{label}</Label>
-      <Input id={id} type={type} value={value} onChange={(e) => onChange(e.target.value)} className="h-11" />
+      <Input id={id} type={type} value={value} onChange={(e) => onChange(e.target.value)} className="h-10" />
     </div>
   );
 }
