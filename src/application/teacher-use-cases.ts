@@ -1,17 +1,18 @@
 import type { Course } from "@/domain/course";
+import { DomainError } from "@/domain/errors";
 import {
-  getBimesterStatus,
-  reopenBimester,
-  signBimesterAsTeacher,
+  publishBimester,
+  publishClosing,
   updateBimester,
   updateClosing,
   type BimesterNumber,
   type BimesterPatch,
-  type BimesterStatus,
   type ClosingPatch,
   type ReportCard,
+  type ReportPeriod,
 } from "@/domain/report-card";
 import type { Student } from "@/domain/student";
+import { isPublishable, summarizeProgress, type PeriodProgress } from "./progress";
 import {
   forbidden,
   loadOrCreateReportCard,
@@ -24,21 +25,29 @@ import {
 export interface TeacherCourseSummary {
   course: Course;
   studentCount: number;
-  /** Bimesters with grades loaded but not signed yet. */
-  drafts: number;
-  /** Bimesters signed by the teacher, waiting for the director. */
-  awaitingApproval: number;
+  progress: PeriodProgress[];
 }
 
-export interface RosterEntry {
+export interface GradeSheetRow {
   student: Student;
-  statuses: BimesterStatus[];
   card: ReportCard;
 }
 
-export interface CourseRoster {
+export interface GradeSheet {
   course: Course;
-  students: RosterEntry[];
+  rows: GradeSheetRow[];
+}
+
+export type GradeSheetChange<P extends ReportPeriod> = {
+  studentId: string;
+  patch: P extends "closing" ? ClosingPatch : BimesterPatch;
+};
+
+export interface PublishResult {
+  /** Students whose period was published by this call. */
+  published: string[];
+  /** Students skipped because required grades are missing. */
+  incomplete: string[];
 }
 
 export function createTeacherUseCases(deps: UseCaseDeps) {
@@ -59,17 +68,13 @@ export function createTeacherUseCases(deps: UseCaseDeps) {
     return data;
   }
 
-  async function roster(course: Course): Promise<RosterEntry[]> {
+  async function loadRows(course: Course): Promise<GradeSheetRow[]> {
     const list = await students.listByCourse(course.id);
     return Promise.all(
-      list.map(async (student) => {
-        const card = await loadOrCreateReportCard(deps, student);
-        return {
-          student,
-          card,
-          statuses: card.bimesters.map(getBimesterStatus),
-        };
-      }),
+      list.map(async (student) => ({
+        student,
+        card: await loadOrCreateReportCard(deps, student),
+      })),
     );
   }
 
@@ -84,26 +89,88 @@ export function createTeacherUseCases(deps: UseCaseDeps) {
     return updated;
   }
 
+  function applyPatch(
+    card: ReportCard,
+    period: ReportPeriod,
+    patch: BimesterPatch | ClosingPatch,
+    course: Course,
+  ): ReportCard {
+    return period === "closing"
+      ? updateClosing(card, patch as ClosingPatch, course.gradingType)
+      : updateBimester(card, period, patch as BimesterPatch, course.gradingType);
+  }
+
   return {
     async listCourses(teacherId: string): Promise<TeacherCourseSummary[]> {
       const assigned = await courses.listByTeacher(teacherId);
       return Promise.all(
         assigned.map(async (course) => {
-          const entries = await roster(course);
-          const all = entries.flatMap((e) => e.statuses);
+          const rows = await loadRows(course);
           return {
             course,
-            studentCount: entries.length,
-            drafts: all.filter((s) => s === "draft").length,
-            awaitingApproval: all.filter((s) => s === "pending-approval").length,
+            studentCount: rows.length,
+            progress: summarizeProgress(rows.map((r) => r.card)),
           };
         }),
       );
     },
 
-    async getCourseRoster(teacherId: string, courseId: string): Promise<CourseRoster> {
+    async getGradeSheet(teacherId: string, courseId: string): Promise<GradeSheet> {
       const course = await requireAssignedCourse(teacherId, courseId);
-      return { course, students: await roster(course) };
+      return { course, rows: await loadRows(course) };
+    },
+
+    /**
+     * Saves the changed rows of one period as drafts (published periods stay
+     * published). Every row is validated before anything is written.
+     */
+    async saveGradeSheet<P extends ReportPeriod>(
+      teacherId: string,
+      courseId: string,
+      period: P,
+      changes: GradeSheetChange<P>[],
+    ): Promise<GradeSheet> {
+      const course = await requireAssignedCourse(teacherId, courseId);
+      const rows = await loadRows(course);
+      const updated = changes.map(({ studentId, patch }) => {
+        const row = rows.find((r) => r.student.id === studentId);
+        if (!row) {
+          throw new DomainError(
+            "student-not-in-course",
+            "El alumno no pertenece a este curso.",
+          );
+        }
+        return applyPatch(row.card, period, patch, course);
+      });
+      for (const card of updated) await reportCards.save(card);
+      return { course, rows: await loadRows(course) };
+    },
+
+    /** Publishes the period for every student with the required grades. */
+    async publishGradeSheet(
+      teacherId: string,
+      courseId: string,
+      period: ReportPeriod,
+    ): Promise<PublishResult> {
+      const course = await requireAssignedCourse(teacherId, courseId);
+      const rows = await loadRows(course);
+      const now = deps.clock.now();
+      const result: PublishResult = { published: [], incomplete: [] };
+      for (const { student, card } of rows) {
+        const state = isPublishable(card, period);
+        if (state === "already-published") continue;
+        if (state === "incomplete") {
+          result.incomplete.push(student.id);
+          continue;
+        }
+        await reportCards.save(
+          period === "closing"
+            ? publishClosing(card, now)
+            : publishBimester(card, period, now),
+        );
+        result.published.push(student.id);
+      }
+      return result;
     },
 
     getReportCard(teacherId: string, studentId: string) {
@@ -118,18 +185,6 @@ export function createTeacherUseCases(deps: UseCaseDeps) {
     ) {
       return change(teacherId, studentId, ({ card, course }) =>
         updateBimester(card, bimester, patch, course.gradingType),
-      );
-    },
-
-    signBimester(teacherId: string, studentId: string, bimester: BimesterNumber) {
-      return change(teacherId, studentId, ({ card }) =>
-        signBimesterAsTeacher(card, bimester, deps.clock.now()),
-      );
-    },
-
-    reopenBimester(teacherId: string, studentId: string, bimester: BimesterNumber) {
-      return change(teacherId, studentId, ({ card }) =>
-        reopenBimester(card, bimester),
       );
     },
 

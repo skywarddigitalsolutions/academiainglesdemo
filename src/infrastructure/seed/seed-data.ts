@@ -3,9 +3,8 @@ import type { Course } from "@/domain/course";
 import type { ConceptualGrade, GradeValue, GradingType } from "@/domain/grading";
 import {
   acknowledgeBimester,
-  approveBimester,
   createEmptyReportCard,
-  signBimesterAsTeacher,
+  publishBimester,
   updateBimester,
   updateClosing,
   type BimesterNumber,
@@ -173,7 +172,9 @@ function buildReportCard(
   const type = course.gradingType;
   const isLow = level < 6;
 
-  for (const n of [1, 2, 3] as BimesterNumber[]) {
+  // Bimester 3 is still being loaded: roughly two thirds of each course.
+  const bimesters: BimesterNumber[] = index % 3 === 2 ? [1, 2] : [1, 2, 3];
+  for (const n of bimesters) {
     const value = level + BIMESTER_VARIATION[n] + ((index + n) % 2 === 0 ? 0.5 : 0);
     card = updateBimester(
       card,
@@ -188,22 +189,17 @@ function buildReportCard(
     );
   }
 
-  // Bimesters 1 and 2: closed by the teacher and approved by the director.
-  card = signBimesterAsTeacher(card, 1, at(year, "04-28"));
-  card = approveBimester(card, 1, at(year, "05-02", "11:30"));
-  card = signBimesterAsTeacher(card, 2, at(year, "07-03"));
-  card = approveBimester(card, 2, at(year, "07-07", "12:15"));
+  // Bimesters 1 and 2: published to families.
+  card = publishBimester(card, 1, at(year, "04-30", "11:30"));
+  card = publishBimester(card, 2, at(year, "07-04", "12:15"));
 
-  // Some families already acknowledged.
+  // Some families already read them.
   if (index % 2 === 0) {
     card = acknowledgeBimester(card, 1, at(year, "05-04", "20:45"));
   }
   if (index % 3 === 0 && student.guardianIds[0] !== "u-parent-1") {
     card = acknowledgeBimester(card, 2, at(year, "07-09", "21:10"));
   }
-
-  // Bimester 3: signed by the teacher, waiting for the director.
-  card = signBimesterAsTeacher(card, 3, at(year, "09-26", "16:00"));
 
   card = updateClosing(
     card,

@@ -15,11 +15,14 @@ import { buildSeed, type SeedData } from "../seed/seed-data";
 import { LocalStorageCollection } from "./local-storage-collection";
 import { STORAGE_PREFIX, type StorageLike } from "./storage";
 
+/** Bump when the stored shape changes so old browsers get a fresh seed. */
+const DATA_VERSION = "v2:";
+
 const KEYS = {
-  users: `${STORAGE_PREFIX}users`,
-  courses: `${STORAGE_PREFIX}courses`,
-  students: `${STORAGE_PREFIX}students`,
-  reportCards: `${STORAGE_PREFIX}report-cards`,
+  users: `${STORAGE_PREFIX}${DATA_VERSION}users`,
+  courses: `${STORAGE_PREFIX}${DATA_VERSION}courses`,
+  students: `${STORAGE_PREFIX}${DATA_VERSION}students`,
+  reportCards: `${STORAGE_PREFIX}${DATA_VERSION}report-cards`,
   session: `${STORAGE_PREFIX}session`,
 } as const;
 

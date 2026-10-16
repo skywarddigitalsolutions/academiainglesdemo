@@ -19,7 +19,7 @@ export interface ChildSummary {
   student: Student;
   course: Course;
   publishedBimesters: number;
-  /** Approved bimesters not yet marked as read. */
+  /** Published bimesters not yet marked as read. */
   pendingAcknowledgements: number;
 }
 
@@ -65,9 +65,9 @@ export function createParentUseCases(deps: UseCaseDeps) {
             student,
             course,
             publishedBimesters: statuses.filter(
-              (s) => s === "approved" || s === "acknowledged",
+              (s) => s === "published" || s === "read",
             ).length,
-            pendingAcknowledgements: statuses.filter((s) => s === "approved")
+            pendingAcknowledgements: statuses.filter((s) => s === "published")
               .length,
           };
         }),

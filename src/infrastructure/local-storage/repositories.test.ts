@@ -69,9 +69,15 @@ describe("local storage repositories", () => {
     expect(await reloaded.reportCards.findByStudent(student.id, 1999)).toBeNull();
   });
 
-  it("namespaces every key", async () => {
+  it("namespaces every key and versions the data collections", async () => {
     await repos.students.list();
-    expect(storage.getItem(`${STORAGE_PREFIX}students`)).not.toBeNull();
+    expect(storage.getItem(`${STORAGE_PREFIX}v2:students`)).not.toBeNull();
+  });
+
+  it("ignores data stored with a previous schema version", async () => {
+    storage.setItem(`${STORAGE_PREFIX}students`, "[]");
+    const fresh = createLocalStorageRepositories(storage, 2026);
+    expect((await fresh.students.list()).length).toBeGreaterThan(0);
   });
 
   it("restores the seed when the demo is reset", async () => {

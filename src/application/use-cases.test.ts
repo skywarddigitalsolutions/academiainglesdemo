@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it } from "vitest";
 import { DomainError } from "@/domain/errors";
-import { getBimester } from "@/domain/report-card";
+import { getBimester, getBimesterStatus } from "@/domain/report-card";
 import { createLocalStorageRepositories } from "@/infrastructure/local-storage/repositories";
 import { MemoryStorage } from "@/infrastructure/local-storage/memory-storage";
 import { createUseCases, type UseCases } from "./use-cases";
@@ -57,7 +57,7 @@ describe("teacher", () => {
   });
 
   it("forbids access to a course of another teacher", async () => {
-    await expect(uc.teacher.getCourseRoster(OTHER_TEACHER, "c-2a")).rejects.toThrow(
+    await expect(uc.teacher.getGradeSheet(OTHER_TEACHER, "c-2a")).rejects.toThrow(
       DomainError,
     );
     await expect(uc.teacher.getReportCard(OTHER_TEACHER, "s-01")).rejects.toThrow(
@@ -65,25 +65,86 @@ describe("teacher", () => {
     );
   });
 
-  it("returns the roster with bimester statuses", async () => {
-    const roster = await uc.teacher.getCourseRoster(TEACHER, "c-5a");
-    expect(roster.course.name).toBe("5° Grado A");
-    expect(roster.students[0].statuses).toHaveLength(4);
-    expect(roster.students[0].statuses[2]).toBe("pending-approval");
+  it("summarizes loading progress per period", async () => {
+    const courses = await uc.teacher.listCourses(TEACHER);
+    const fifth = courses.find((c) => c.course.id === "c-5a")!;
+    expect(fifth.studentCount).toBe(8);
+    expect(fifth.progress.map((p) => p.period)).toEqual([1, 2, 3, 4, "closing"]);
+    const [b1, , b3, b4] = fifth.progress;
+    expect(b1).toMatchObject({ complete: 8, published: 8 });
+    expect(b3.complete).toBeGreaterThan(0);
+    expect(b3.complete).toBeLessThan(8);
+    expect(b3.published).toBe(0);
+    expect(b4).toMatchObject({ complete: 0, published: 0 });
   });
 
-  it("saves and signs bimester 4", async () => {
-    await uc.teacher.saveBimester(TEACHER, "s-08", 4, {
-      applicationGrade: 8,
-      conductGrade: "Muy bueno",
-      observation: "Muy buen cierre de año.",
-      absences: 1,
-    });
-    const card = await uc.teacher.signBimester(TEACHER, "s-08", 4);
-    expect(getBimester(card, 4).signatures.teacher).toEqual({
-      signed: true,
-      at: NOW.toISOString(),
-    });
+  it("returns the grade sheet of a course with every student", async () => {
+    const sheet = await uc.teacher.getGradeSheet(TEACHER, "c-5a");
+    expect(sheet.course.name).toBe("5° Grado A");
+    expect(sheet.rows).toHaveLength(8);
+    expect(getBimesterStatus(getBimester(sheet.rows[0].card, 1))).toMatch(
+      /published|read/,
+    );
+  });
+
+  it("saves several students of a bimester as drafts in one call", async () => {
+    await uc.teacher.saveGradeSheet(TEACHER, "c-5a", 4, [
+      { studentId: "s-08", patch: { applicationGrade: 8, conductGrade: "Muy bueno" } },
+      { studentId: "s-09", patch: { applicationGrade: 9, absences: 1 } },
+    ]);
+    const sheet = await uc.teacher.getGradeSheet(TEACHER, "c-5a");
+    const tomas = sheet.rows.find((r) => r.student.id === "s-08")!;
+    const martina = sheet.rows.find((r) => r.student.id === "s-09")!;
+    expect(getBimester(tomas.card, 4).applicationGrade).toBe(8);
+    expect(getBimesterStatus(getBimester(tomas.card, 4))).toBe("draft");
+    expect(getBimester(martina.card, 4).absences).toBe(1);
+  });
+
+  it("does not write anything when one row of the sheet is invalid", async () => {
+    await expect(
+      uc.teacher.saveGradeSheet(TEACHER, "c-5a", 4, [
+        { studentId: "s-08", patch: { applicationGrade: 8 } },
+        { studentId: "s-09", patch: { applicationGrade: 42 } },
+      ]),
+    ).rejects.toThrow(DomainError);
+    const { card } = await uc.teacher.getReportCard(TEACHER, "s-08");
+    expect(getBimester(card, 4).applicationGrade).toBeNull();
+  });
+
+  it("rejects sheet rows of students from another course", async () => {
+    await expect(
+      uc.teacher.saveGradeSheet(TEACHER, "c-5a", 4, [
+        { studentId: "s-01", patch: { absences: 1 } },
+      ]),
+    ).rejects.toThrow(DomainError);
+  });
+
+  it("publishes every complete bimester of the course and skips the rest", async () => {
+    await uc.teacher.saveGradeSheet(TEACHER, "c-5a", 4, [
+      { studentId: "s-08", patch: { applicationGrade: 8, conductGrade: "Muy bueno" } },
+      { studentId: "s-09", patch: { applicationGrade: 9 } },
+    ]);
+    const result = await uc.teacher.publishGradeSheet(TEACHER, "c-5a", 4);
+    expect(result.published).toEqual(["s-08"]);
+    expect(result.incomplete).toHaveLength(7);
+    const { card } = await uc.teacher.getReportCard(TEACHER, "s-08");
+    expect(getBimester(card, 4).publishedAt).toBe(NOW.toISOString());
+  });
+
+  it("publishes the closing of students with a final result", async () => {
+    await uc.teacher.saveGradeSheet(TEACHER, "c-5a", "closing", [
+      {
+        studentId: "s-08",
+        patch: {
+          result: "Aprobado",
+          finalResult: { kind: "promoted", nextCourseName: "6° Grado A" },
+        },
+      },
+    ]);
+    const result = await uc.teacher.publishGradeSheet(TEACHER, "c-5a", "closing");
+    expect(result.published).toEqual(["s-08"]);
+    const { card } = await uc.teacher.getReportCard(TEACHER, "s-08");
+    expect(card.closing.publishedAt).toBe(NOW.toISOString());
   });
 
   it("validates grades against the course grading type", async () => {
@@ -102,23 +163,23 @@ describe("teacher", () => {
 });
 
 describe("admin", () => {
-  it("lists bimesters pending approval", async () => {
-    const pending = await uc.admin.listPendingApprovals();
-    expect(pending.length).toBe(21);
-    expect(pending.every((p) => p.bimester === 3)).toBe(true);
-  });
-
-  it("approves a bimester and removes it from the pending list", async () => {
-    await uc.admin.approveBimester("s-01", 3);
-    const pending = await uc.admin.listPendingApprovals();
-    expect(pending.find((p) => p.student.id === "s-01")).toBeUndefined();
-  });
-
   it("summarizes the institution", async () => {
     const overview = await uc.admin.getOverview();
     expect(overview.totals.students).toBe(21);
-    expect(overview.totals.pendingApprovals).toBe(21);
+    expect(overview.totals.courses).toBe(3);
     expect(overview.courses).toHaveLength(3);
+    expect(overview.courses[0].progress).toHaveLength(5);
+  });
+
+  it("has no approval workflow", () => {
+    expect("listPendingApprovals" in uc.admin).toBe(false);
+    expect("approveBimester" in uc.admin).toBe(false);
+  });
+
+  it("reads any student's report card", async () => {
+    const { card, course } = await uc.admin.getReportCard("s-02");
+    expect(course.id).toBe("c-2a");
+    expect(card.bimesters).toHaveLength(4);
   });
 
   it("creates a student with an empty report card", async () => {
@@ -190,15 +251,6 @@ describe("admin", () => {
     const sofia = students.find((s) => s.student.id === "s-01")!;
     expect(sofia.student.guardianIds).toEqual(["u-parent-2"]);
   });
-
-  it("signs the closing once the teacher completed it", async () => {
-    await uc.teacher.saveClosing(TEACHER, "s-08", {
-      result: "Aprobado",
-      finalResult: { kind: "promoted", nextCourseName: "6° Grado A" },
-    });
-    const card = await uc.admin.signClosing("s-08");
-    expect(card.closing.directorSignature.signed).toBe(true);
-  });
 });
 
 describe("parent", () => {
@@ -211,7 +263,7 @@ describe("parent", () => {
     expect(children[0].pendingAcknowledgements).toBe(1);
   });
 
-  it("sees only director-approved bimesters", async () => {
+  it("sees only published bimesters", async () => {
     const { view } = await uc.parent.getReportCard(PARENT, "s-01");
     expect(view.bimesters.map((b) => b.visible)).toEqual([
       true,
@@ -227,15 +279,12 @@ describe("parent", () => {
     );
   });
 
-  it("acknowledges an approved bimester with a timestamp", async () => {
+  it("marks a published bimester as read with a timestamp", async () => {
     const { view } = await uc.parent.acknowledgeBimester(PARENT, "s-01", 2);
-    expect(view.bimesters[1].data?.signatures.parent).toEqual({
-      signed: true,
-      at: NOW.toISOString(),
-    });
+    expect(view.bimesters[1].data?.readAt).toBe(NOW.toISOString());
   });
 
-  it("cannot acknowledge a pending bimester", async () => {
+  it("cannot mark an unpublished bimester as read", async () => {
     await expect(uc.parent.acknowledgeBimester(PARENT, "s-01", 3)).rejects.toThrow(
       DomainError,
     );

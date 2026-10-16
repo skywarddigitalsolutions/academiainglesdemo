@@ -10,19 +10,12 @@ import {
 export const BIMESTER_NUMBERS = [1, 2, 3, 4] as const;
 export type BimesterNumber = (typeof BIMESTER_NUMBERS)[number];
 
+/** A grade sheet period: one of the bimesters or the year closing. */
+export type ReportPeriod = BimesterNumber | "closing";
+export const REPORT_PERIODS: readonly ReportPeriod[] = [...BIMESTER_NUMBERS, "closing"];
+
 /** The cuatrimestral exam is taken after this bimester. */
 export const CUATRIMESTRAL_AFTER_BIMESTER: BimesterNumber = 2;
-
-export interface Signature {
-  signed: boolean;
-  at: string | null;
-}
-
-export interface BimesterSignatures {
-  teacher: Signature;
-  director: Signature;
-  parent: Signature;
-}
 
 export interface Bimester {
   number: BimesterNumber;
@@ -30,15 +23,14 @@ export interface Bimester {
   conductGrade: ConceptualGrade | null;
   observation: string;
   absences: number;
-  signatures: BimesterSignatures;
+  /** When the teacher published it to families (null = draft or empty). */
+  publishedAt: string | null;
+  /** When a family marked it as read. */
+  readAt: string | null;
 }
 
-export type BimesterStatus =
-  | "empty"
-  | "draft"
-  | "pending-approval"
-  | "approved"
-  | "acknowledged";
+export type BimesterStatus = "empty" | "draft" | "published" | "read";
+export type ClosingStatus = "empty" | "draft" | "published";
 
 export const CLOSING_RESULTS = ["Aprobado", "Va a examen final"] as const;
 export type ClosingResult = (typeof CLOSING_RESULTS)[number];
@@ -60,7 +52,8 @@ export interface Closing {
   result: ClosingResult | null;
   finalExam: FinalExam | null;
   finalResult: FinalResult | null;
-  directorSignature: Signature;
+  /** When the teacher published the closing to families. */
+  publishedAt: string | null;
 }
 
 export interface ReportCard {
@@ -76,13 +69,7 @@ export type BimesterPatch = Partial<
   Pick<Bimester, "applicationGrade" | "conductGrade" | "observation" | "absences">
 >;
 
-export type ClosingPatch = Partial<Omit<Closing, "directorSignature">>;
-
-const UNSIGNED: Signature = { signed: false, at: null };
-
-function sign(now: Date): Signature {
-  return { signed: true, at: now.toISOString() };
-}
+export type ClosingPatch = Partial<Omit<Closing, "publishedAt">>;
 
 function emptyBimester(number: BimesterNumber): Bimester {
   return {
@@ -91,7 +78,8 @@ function emptyBimester(number: BimesterNumber): Bimester {
     conductGrade: null,
     observation: "",
     absences: 0,
-    signatures: { teacher: UNSIGNED, director: UNSIGNED, parent: UNSIGNED },
+    publishedAt: null,
+    readAt: null,
   };
 }
 
@@ -109,7 +97,7 @@ export function createEmptyReportCard(params: {
       result: null,
       finalExam: null,
       finalResult: null,
-      directorSignature: UNSIGNED,
+      publishedAt: null,
     },
   };
 }
@@ -122,21 +110,43 @@ export function getBimester(card: ReportCard, number: BimesterNumber): Bimester 
   return bimester;
 }
 
-export function getBimesterStatus(bimester: Bimester): BimesterStatus {
-  const { teacher, director, parent } = bimester.signatures;
-  if (director.signed && parent.signed) return "acknowledged";
-  if (director.signed) return "approved";
-  if (teacher.signed) return "pending-approval";
-  const hasContent =
+function hasBimesterContent(bimester: Bimester): boolean {
+  return (
     bimester.applicationGrade !== null ||
     bimester.conductGrade !== null ||
     bimester.observation.trim() !== "" ||
-    bimester.absences > 0;
-  return hasContent ? "draft" : "empty";
+    bimester.absences > 0
+  );
+}
+
+export function getBimesterStatus(bimester: Bimester): BimesterStatus {
+  if (bimester.publishedAt !== null) {
+    return bimester.readAt !== null ? "read" : "published";
+  }
+  return hasBimesterContent(bimester) ? "draft" : "empty";
+}
+
+/** Application and conduct grades are required to publish a bimester. */
+export function isBimesterComplete(bimester: Bimester): boolean {
+  return bimester.applicationGrade !== null && bimester.conductGrade !== null;
 }
 
 export function isVisibleToParent(bimester: Bimester): boolean {
-  return bimester.signatures.director.signed;
+  return bimester.publishedAt !== null;
+}
+
+export function getClosingStatus(closing: Closing): ClosingStatus {
+  if (closing.publishedAt !== null) return "published";
+  const hasContent =
+    closing.cuatrimestralExam !== null ||
+    closing.result !== null ||
+    closing.finalResult !== null;
+  return hasContent ? "draft" : "empty";
+}
+
+/** Result and final result are required to publish the closing. */
+export function isClosingComplete(closing: Closing): boolean {
+  return closing.result !== null && closing.finalResult !== null;
 }
 
 function replaceBimester(
@@ -159,13 +169,6 @@ export function updateBimester(
   patch: BimesterPatch,
   gradingType: GradingType,
 ): ReportCard {
-  const current = getBimester(card, number);
-  if (current.signatures.teacher.signed) {
-    throw new DomainError(
-      "bimester-locked",
-      "El bimestre ya fue firmado por el docente y no puede modificarse.",
-    );
-  }
   if (
     patch.applicationGrade !== undefined &&
     patch.applicationGrade !== null &&
@@ -200,58 +203,23 @@ export function updateBimester(
   return replaceBimester(card, number, (b) => ({ ...b, ...patch }));
 }
 
-export function signBimesterAsTeacher(
+/** Makes the bimester visible to families. Published bimesters stay editable. */
+export function publishBimester(
   card: ReportCard,
   number: BimesterNumber,
   now: Date,
 ): ReportCard {
   const current = getBimester(card, number);
-  if (current.signatures.teacher.signed) return card;
-  if (current.applicationGrade === null || current.conductGrade === null) {
+  if (current.publishedAt !== null) return card;
+  if (!isBimesterComplete(current)) {
     throw new DomainError(
       "bimester-incomplete",
-      "Para firmar el bimestre cargue la nota de aplicación y la conducta.",
+      "Para publicar el bimestre cargue la nota de aplicación y la conducta.",
     );
   }
   return replaceBimester(card, number, (b) => ({
     ...b,
-    signatures: { ...b.signatures, teacher: sign(now) },
-  }));
-}
-
-export function reopenBimester(
-  card: ReportCard,
-  number: BimesterNumber,
-): ReportCard {
-  const current = getBimester(card, number);
-  if (current.signatures.director.signed) {
-    throw new DomainError(
-      "bimester-approved",
-      "El bimestre ya fue aprobado por Dirección y no puede reabrirse.",
-    );
-  }
-  return replaceBimester(card, number, (b) => ({
-    ...b,
-    signatures: { ...b.signatures, teacher: UNSIGNED },
-  }));
-}
-
-export function approveBimester(
-  card: ReportCard,
-  number: BimesterNumber,
-  now: Date,
-): ReportCard {
-  const current = getBimester(card, number);
-  if (!current.signatures.teacher.signed) {
-    throw new DomainError(
-      "bimester-not-signed",
-      "El bimestre debe estar firmado por el docente antes de aprobarse.",
-    );
-  }
-  if (current.signatures.director.signed) return card;
-  return replaceBimester(card, number, (b) => ({
-    ...b,
-    signatures: { ...b.signatures, director: sign(now) },
+    publishedAt: now.toISOString(),
   }));
 }
 
@@ -261,16 +229,16 @@ export function acknowledgeBimester(
   now: Date,
 ): ReportCard {
   const current = getBimester(card, number);
-  if (!current.signatures.director.signed) {
+  if (current.publishedAt === null) {
     throw new DomainError(
-      "bimester-not-approved",
-      "El bimestre todavía no fue aprobado por Dirección.",
+      "bimester-not-published",
+      "El bimestre todavía no fue publicado.",
     );
   }
-  if (current.signatures.parent.signed) return card;
+  if (current.readAt !== null) return card;
   return replaceBimester(card, number, (b) => ({
     ...b,
-    signatures: { ...b.signatures, parent: sign(now) },
+    readAt: now.toISOString(),
   }));
 }
 
@@ -279,12 +247,6 @@ export function updateClosing(
   patch: ClosingPatch,
   gradingType: GradingType,
 ): ReportCard {
-  if (card.closing.directorSignature.signed) {
-    throw new DomainError(
-      "closing-locked",
-      "El cierre ya fue firmado por Dirección y no puede modificarse.",
-    );
-  }
   if (
     patch.cuatrimestralExam !== undefined &&
     patch.cuatrimestralExam !== null &&
@@ -311,18 +273,19 @@ export function updateClosing(
   return { ...card, closing: next };
 }
 
-export function signClosingAsDirector(
-  card: ReportCard,
-  now: Date,
-): ReportCard {
-  if (card.closing.result === null || card.closing.finalResult === null) {
+/** Makes the closing visible to families. It stays editable afterwards. */
+export function publishClosing(card: ReportCard, now: Date): ReportCard {
+  if (card.closing.publishedAt !== null) return card;
+  if (!isClosingComplete(card.closing)) {
     throw new DomainError(
       "closing-incomplete",
-      "Para firmar el cierre, el docente debe cargar el resultado y la situación final.",
+      "Para publicar el cierre cargue el resultado y la situación final.",
     );
   }
-  if (card.closing.directorSignature.signed) return card;
-  return { ...card, closing: { ...card.closing, directorSignature: sign(now) } };
+  return {
+    ...card,
+    closing: { ...card.closing, publishedAt: now.toISOString() },
+  };
 }
 
 export function formatFinalResult(result: FinalResult | null): string {
@@ -350,7 +313,7 @@ export interface ParentReportCardView {
 
 /**
  * Projects a report card to what a parent may see:
- * only director-approved bimesters and a director-signed closing.
+ * only published bimesters and a published closing.
  */
 export function toParentView(card: ReportCard): ParentReportCardView {
   const cuatrimestralVisible = isVisibleToParent(
@@ -369,6 +332,6 @@ export function toParentView(card: ReportCard): ParentReportCardView {
     cuatrimestralExam: cuatrimestralVisible
       ? card.closing.cuatrimestralExam
       : null,
-    closing: card.closing.directorSignature.signed ? card.closing : null,
+    closing: card.closing.publishedAt !== null ? card.closing : null,
   };
 }

@@ -1,14 +1,6 @@
 import type { Course } from "@/domain/course";
 import { DomainError } from "@/domain/errors";
 import {
-  approveBimester,
-  getBimesterStatus,
-  signClosingAsDirector,
-  type Bimester,
-  type BimesterNumber,
-  type ReportCard,
-} from "@/domain/report-card";
-import {
   fullName,
   linkGuardian,
   unlinkGuardian,
@@ -17,6 +9,7 @@ import {
 } from "@/domain/student";
 import type { User } from "@/domain/user";
 import { DEMO_PASSWORD } from "./demo-constants";
+import { summarizeProgress, type PeriodProgress } from "./progress";
 import {
   loadOrCreateReportCard,
   loadStudentReportCard,
@@ -25,19 +18,11 @@ import {
   type UseCaseDeps,
 } from "./shared";
 
-export interface PendingApproval {
-  student: Student;
-  course: Course;
-  bimester: BimesterNumber;
-  data: Bimester;
-  teacherNames: string[];
-}
-
 export interface CourseOverview {
   course: Course;
   teachers: User[];
   studentCount: number;
-  pendingApprovals: number;
+  progress: PeriodProgress[];
 }
 
 export interface StudentInput {
@@ -71,43 +56,6 @@ export interface ParentListItem {
 export function createAdminUseCases(deps: UseCaseDeps) {
   const { courses, students, users, reportCards } = deps.repositories;
 
-  async function listPendingApprovals(): Promise<PendingApproval[]> {
-    const [allStudents, allCourses, teachers] = await Promise.all([
-      students.list(),
-      courses.list(),
-      users.listByRole("teacher"),
-    ]);
-    const pending: PendingApproval[] = [];
-    for (const student of allStudents) {
-      const course = allCourses.find((c) => c.id === student.courseId);
-      if (!course) continue;
-      const card = await loadOrCreateReportCard(deps, student);
-      for (const bimester of card.bimesters) {
-        if (getBimesterStatus(bimester) !== "pending-approval") continue;
-        pending.push({
-          student,
-          course,
-          bimester: bimester.number,
-          data: bimester,
-          teacherNames: teachers
-            .filter((t) => course.teacherIds.includes(t.id))
-            .map((t) => `${t.firstName} ${t.lastName}`),
-        });
-      }
-    }
-    return pending;
-  }
-
-  async function changeCard(
-    studentId: string,
-    apply: (card: ReportCard) => ReportCard,
-  ): Promise<ReportCard> {
-    const { card } = await loadStudentReportCard(deps, studentId);
-    const updated = apply(card);
-    await reportCards.save(updated);
-    return updated;
-  }
-
   async function requireParent(parentId: string): Promise<User> {
     const parent = await users.getById(parentId);
     if (!parent || parent.role !== "parent") throw notFound("la familia");
@@ -115,44 +63,34 @@ export function createAdminUseCases(deps: UseCaseDeps) {
   }
 
   return {
-    listPendingApprovals,
-
     async getOverview() {
-      const [allCourses, allStudents, parents, teachers, pending] =
-        await Promise.all([
-          courses.list(),
-          students.list(),
-          users.listByRole("parent"),
-          users.listByRole("teacher"),
-          listPendingApprovals(),
-        ]);
+      const [allCourses, allStudents, parents, teachers] = await Promise.all([
+        courses.list(),
+        students.list(),
+        users.listByRole("parent"),
+        users.listByRole("teacher"),
+      ]);
+      const cards = await Promise.all(
+        allStudents.map((student) => loadOrCreateReportCard(deps, student)),
+      );
       const overview: CourseOverview[] = allCourses.map((course) => ({
         course,
         teachers: teachers.filter((t) => course.teacherIds.includes(t.id)),
         studentCount: allStudents.filter((s) => s.courseId === course.id).length,
-        pendingApprovals: pending.filter((p) => p.course.id === course.id).length,
+        progress: summarizeProgress(
+          cards.filter((c) => c.courseId === course.id),
+        ),
       }));
       return {
         courses: overview,
+        progress: summarizeProgress(cards),
         totals: {
           students: allStudents.length,
           parents: parents.length,
           teachers: teachers.length,
-          pendingApprovals: pending.length,
+          courses: allCourses.length,
         },
       };
-    },
-
-    approveBimester(studentId: string, bimester: BimesterNumber) {
-      return changeCard(studentId, (card) =>
-        approveBimester(card, bimester, deps.clock.now()),
-      );
-    },
-
-    signClosing(studentId: string) {
-      return changeCard(studentId, (card) =>
-        signClosingAsDirector(card, deps.clock.now()),
-      );
     },
 
     getReportCard(studentId: string) {

@@ -65,12 +65,19 @@ describe("demo seed", () => {
   it("fills bimesters following the demo storyline", () => {
     expect(seed.reportCards).toHaveLength(seed.students.length);
     for (const card of seed.reportCards) {
-      expect(getBimester(card, 1).signatures.director.signed).toBe(true);
-      expect(getBimester(card, 2).signatures.director.signed).toBe(true);
-      expect(getBimesterStatus(getBimester(card, 3))).toBe("pending-approval");
+      expect(getBimester(card, 1).publishedAt).not.toBeNull();
+      expect(getBimester(card, 2).publishedAt).not.toBeNull();
+      expect(["empty", "draft"]).toContain(getBimesterStatus(getBimester(card, 3)));
       expect(getBimesterStatus(getBimester(card, 4))).toBe("empty");
       expect(card.closing.cuatrimestralExam).not.toBeNull();
+      expect(card.closing.publishedAt).toBeNull();
     }
+    const statuses = seed.reportCards.map((c) => getBimesterStatus(getBimester(c, 3)));
+    expect(statuses).toContain("draft");
+    expect(statuses).toContain("empty");
+    const read = seed.reportCards.filter((c) => getBimester(c, 1).readAt !== null);
+    expect(read.length).toBeGreaterThan(0);
+    expect(read.length).toBeLessThan(seed.reportCards.length);
   });
 
   it("showcases one student going to a final exam", () => {

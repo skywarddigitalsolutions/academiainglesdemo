@@ -2,14 +2,14 @@ import { describe, expect, it } from "vitest";
 import { DomainError } from "./errors";
 import {
   acknowledgeBimester,
-  approveBimester,
   createEmptyReportCard,
   formatFinalResult,
   getBimester,
   getBimesterStatus,
-  reopenBimester,
-  signBimesterAsTeacher,
-  signClosingAsDirector,
+  getClosingStatus,
+  isBimesterComplete,
+  publishBimester,
+  publishClosing,
   toParentView,
   updateBimester,
   updateClosing,
@@ -37,8 +37,12 @@ function filledCard(): ReportCard {
   );
 }
 
+function publishedCard(): ReportCard {
+  return publishBimester(filledCard(), 1, NOW);
+}
+
 describe("createEmptyReportCard", () => {
-  it("creates four empty, unsigned bimesters and an empty closing", () => {
+  it("creates four empty, unpublished bimesters and an empty closing", () => {
     const card = newCard();
     expect(card.bimesters).toHaveLength(4);
     expect(card.bimesters.map((b) => b.number)).toEqual([1, 2, 3, 4]);
@@ -46,17 +50,19 @@ describe("createEmptyReportCard", () => {
       expect(b.applicationGrade).toBeNull();
       expect(b.conductGrade).toBeNull();
       expect(b.absences).toBe(0);
-      expect(b.signatures.teacher.signed).toBe(false);
+      expect(b.publishedAt).toBeNull();
+      expect(b.readAt).toBeNull();
       expect(getBimesterStatus(b)).toBe("empty");
     }
     expect(card.closing.cuatrimestralExam).toBeNull();
     expect(card.closing.result).toBeNull();
-    expect(card.closing.directorSignature.signed).toBe(false);
+    expect(card.closing.publishedAt).toBeNull();
+    expect(getClosingStatus(card.closing)).toBe("empty");
   });
 });
 
 describe("updateBimester", () => {
-  it("records grades without mutating the original card", () => {
+  it("records grades as a draft without mutating the original card", () => {
     const original = newCard();
     const updated = updateBimester(
       original,
@@ -119,79 +125,55 @@ describe("updateBimester", () => {
     expect(getBimester(card, 1).applicationGrade).toBeNull();
   });
 
-  it("locks the bimester once the teacher signed it", () => {
-    const signed = signBimesterAsTeacher(filledCard(), 1, NOW);
-    expect(() =>
-      updateBimester(signed, 1, { absences: 3 }, "numeric"),
-    ).toThrow(DomainError);
+  it("lets the teacher edit a published bimester and keeps it published", () => {
+    const edited = updateBimester(
+      publishedCard(),
+      1,
+      { applicationGrade: 9 },
+      "numeric",
+    );
+    const b = getBimester(edited, 1);
+    expect(b.applicationGrade).toBe(9);
+    expect(b.publishedAt).toBe(NOW.toISOString());
+    expect(getBimesterStatus(b)).toBe("published");
   });
 });
 
-describe("bimester signature workflow", () => {
-  it("lets the teacher sign a complete bimester with a timestamp", () => {
-    const card = signBimesterAsTeacher(filledCard(), 1, NOW);
-    const b = getBimester(card, 1);
-    expect(b.signatures.teacher).toEqual({
-      signed: true,
-      at: NOW.toISOString(),
-    });
-    expect(getBimesterStatus(b)).toBe("pending-approval");
+describe("bimester publication", () => {
+  it("knows when a bimester has the grades required to publish", () => {
+    expect(isBimesterComplete(getBimester(newCard(), 1))).toBe(false);
+    expect(isBimesterComplete(getBimester(filledCard(), 1))).toBe(true);
   });
 
-  it("refuses to sign a bimester without application and conduct grades", () => {
-    expect(() => signBimesterAsTeacher(newCard(), 1, NOW)).toThrow(
+  it("publishes a complete bimester with a timestamp", () => {
+    const b = getBimester(publishedCard(), 1);
+    expect(b.publishedAt).toBe(NOW.toISOString());
+    expect(getBimesterStatus(b)).toBe("published");
+  });
+
+  it("refuses to publish a bimester without application and conduct grades", () => {
+    expect(() => publishBimester(newCard(), 1, NOW)).toThrow(DomainError);
+  });
+
+  it("keeps the first publication timestamp when published twice", () => {
+    const again = publishBimester(publishedCard(), 1, LATER);
+    expect(getBimester(again, 1).publishedAt).toBe(NOW.toISOString());
+  });
+
+  it("lets the parent mark only published bimesters as read", () => {
+    expect(() => acknowledgeBimester(filledCard(), 1, LATER)).toThrow(
       DomainError,
     );
+    const read = acknowledgeBimester(publishedCard(), 1, LATER);
+    const b = getBimester(read, 1);
+    expect(b.readAt).toBe(LATER.toISOString());
+    expect(getBimesterStatus(b)).toBe("read");
   });
 
-  it("requires the teacher signature before the director approves", () => {
-    expect(() => approveBimester(filledCard(), 1, NOW)).toThrow(DomainError);
-  });
-
-  it("lets the director approve a signed bimester", () => {
-    const signed = signBimesterAsTeacher(filledCard(), 1, NOW);
-    const approved = approveBimester(signed, 1, LATER);
-    const b = getBimester(approved, 1);
-    expect(b.signatures.director).toEqual({
-      signed: true,
-      at: LATER.toISOString(),
-    });
-    expect(getBimesterStatus(b)).toBe("approved");
-  });
-
-  it("allows the teacher to reopen a bimester only before approval", () => {
-    const signed = signBimesterAsTeacher(filledCard(), 1, NOW);
-    const reopened = reopenBimester(signed, 1);
-    expect(getBimester(reopened, 1).signatures.teacher.signed).toBe(false);
-
-    const approved = approveBimester(signed, 1, LATER);
-    expect(() => reopenBimester(approved, 1)).toThrow(DomainError);
-  });
-
-  it("lets the parent acknowledge only approved bimesters", () => {
-    const signed = signBimesterAsTeacher(filledCard(), 1, NOW);
-    expect(() => acknowledgeBimester(signed, 1, LATER)).toThrow(DomainError);
-
-    const approved = approveBimester(signed, 1, NOW);
-    const read = acknowledgeBimester(approved, 1, LATER);
-    expect(getBimester(read, 1).signatures.parent).toEqual({
-      signed: true,
-      at: LATER.toISOString(),
-    });
-    expect(getBimesterStatus(getBimester(read, 1))).toBe("acknowledged");
-  });
-
-  it("keeps the first acknowledgement timestamp when acknowledged twice", () => {
-    const approved = approveBimester(
-      signBimesterAsTeacher(filledCard(), 1, NOW),
-      1,
-      NOW,
-    );
-    const first = acknowledgeBimester(approved, 1, NOW);
+  it("keeps the first read timestamp when acknowledged twice", () => {
+    const first = acknowledgeBimester(publishedCard(), 1, NOW);
     const second = acknowledgeBimester(first, 1, LATER);
-    expect(getBimester(second, 1).signatures.parent.at).toBe(
-      NOW.toISOString(),
-    );
+    expect(getBimester(second, 1).readAt).toBe(NOW.toISOString());
   });
 });
 
@@ -200,7 +182,7 @@ describe("closing section", () => {
     const card = updateClosing(newCard(), { cuatrimestralExam: 4 }, "numeric");
     expect(card.closing.cuatrimestralExam).toBe(4);
     expect(card.closing.result).toBeNull();
-    expect(getBimester(card, 2).applicationGrade).toBeNull();
+    expect(getClosingStatus(card.closing)).toBe("draft");
   });
 
   it("validates the cuatrimestral exam against the grading type", () => {
@@ -246,8 +228,8 @@ describe("closing section", () => {
     ).toThrow(DomainError);
   });
 
-  it("requires result and final result before the director signs", () => {
-    expect(() => signClosingAsDirector(newCard(), NOW)).toThrow(DomainError);
+  it("requires result and final result before publishing the closing", () => {
+    expect(() => publishClosing(newCard(), NOW)).toThrow(DomainError);
     const ready = updateClosing(
       newCard(),
       {
@@ -256,15 +238,13 @@ describe("closing section", () => {
       },
       "numeric",
     );
-    const signed = signClosingAsDirector(ready, NOW);
-    expect(signed.closing.directorSignature).toEqual({
-      signed: true,
-      at: NOW.toISOString(),
-    });
+    const published = publishClosing(ready, NOW);
+    expect(published.closing.publishedAt).toBe(NOW.toISOString());
+    expect(getClosingStatus(published.closing)).toBe("published");
   });
 
-  it("locks the closing once the director signed it", () => {
-    const signed = signClosingAsDirector(
+  it("lets the teacher edit a published closing", () => {
+    const published = publishClosing(
       updateClosing(
         newCard(),
         { result: "Aprobado", finalResult: { kind: "march" } },
@@ -272,9 +252,13 @@ describe("closing section", () => {
       ),
       NOW,
     );
-    expect(() =>
-      updateClosing(signed, { result: "Va a examen final" }, "numeric"),
-    ).toThrow(DomainError);
+    const edited = updateClosing(
+      published,
+      { result: "Va a examen final" },
+      "numeric",
+    );
+    expect(edited.closing.result).toBe("Va a examen final");
+    expect(edited.closing.publishedAt).toBe(NOW.toISOString());
   });
 
   it("formats the final result in Spanish", () => {
@@ -287,17 +271,14 @@ describe("closing section", () => {
 });
 
 describe("toParentView", () => {
-  it("hides bimesters not approved by the director", () => {
-    let card = filledCard();
-    card = signBimesterAsTeacher(card, 1, NOW);
-    card = approveBimester(card, 1, NOW);
+  it("hides bimesters that were not published", () => {
+    let card = publishedCard();
     card = updateBimester(
       card,
       2,
       { applicationGrade: 9, conductGrade: "Excelente" },
       "numeric",
     );
-    card = signBimesterAsTeacher(card, 2, NOW);
 
     const view = toParentView(card);
     expect(view.bimesters[0].visible).toBe(true);
@@ -306,7 +287,7 @@ describe("toParentView", () => {
     expect(view.bimesters[1].data).toBeNull();
   });
 
-  it("shows the closing only after the director signed it", () => {
+  it("shows the closing only after it was published", () => {
     const ready = updateClosing(
       newCard(),
       {
@@ -317,12 +298,10 @@ describe("toParentView", () => {
       "numeric",
     );
     expect(toParentView(ready).closing).toBeNull();
-    expect(
-      toParentView(signClosingAsDirector(ready, NOW)).closing,
-    ).not.toBeNull();
+    expect(toParentView(publishClosing(ready, NOW)).closing).not.toBeNull();
   });
 
-  it("shows the cuatrimestral exam once bimester 2 is approved", () => {
+  it("shows the cuatrimestral exam once bimester 2 is published", () => {
     let card = updateClosing(newCard(), { cuatrimestralExam: 8 }, "numeric");
     expect(toParentView(card).cuatrimestralExam).toBeNull();
     card = updateBimester(
@@ -331,7 +310,7 @@ describe("toParentView", () => {
       { applicationGrade: 8, conductGrade: "Bueno" },
       "numeric",
     );
-    card = approveBimester(signBimesterAsTeacher(card, 2, NOW), 2, NOW);
+    card = publishBimester(card, 2, NOW);
     expect(toParentView(card).cuatrimestralExam).toBe(8);
   });
 });
