@@ -14,7 +14,7 @@ import { isLowGrade } from "./sheet-model";
  */
 
 const cellBase =
-  "h-8 w-full rounded-md border border-slate-200 bg-white text-[13px] text-foreground tabular-nums shadow-[0_1px_1px_rgb(15_23_42/0.03)] transition-[border-color,box-shadow,background-color] duration-150 outline-none hover:border-slate-300 focus:border-primary/70 focus:ring-4 focus:ring-primary/12 disabled:cursor-not-allowed disabled:border-slate-100 disabled:bg-slate-50 disabled:text-slate-400 disabled:shadow-none";
+  "h-8 w-full rounded-md border border-border bg-card text-[13px] text-foreground tabular-nums shadow-[0_1px_1px_rgb(15_23_42/0.03)] transition-[border-color,box-shadow,background-color] duration-150 outline-none hover:border-input focus:border-primary/70 focus:ring-4 focus:ring-primary/12 disabled:cursor-not-allowed disabled:border-border/60 disabled:bg-muted disabled:text-muted-foreground disabled:shadow-none";
 
 const lowTone = "border-danger-border bg-danger-soft/80 text-danger hover:border-danger/40";
 const invalidTone = "border-danger/70 ring-2 ring-danger/15 hover:border-danger/70";
@@ -47,7 +47,7 @@ export function TextCell({
       aria-invalid={invalid || undefined}
       className={cn(
         cellBase,
-        "px-2 text-center font-medium placeholder:font-normal placeholder:text-slate-300",
+        "px-2 text-center font-medium placeholder:font-normal placeholder:text-muted-foreground/70",
         hintLow && isLowGrade(value) && lowTone,
         invalid && invalidTone,
         className,
@@ -83,7 +83,7 @@ export function SelectCell({
         className={cn(
           cellBase,
           "appearance-none truncate pr-7 pl-2.5",
-          value === "" && "text-slate-400",
+          value === "" && "text-muted-foreground",
           hintLow && isLowGrade(value) && lowTone,
         )}
         {...props}
@@ -103,20 +103,56 @@ export function SelectCell({
   );
 }
 
+/** Read-only cell text: an em dash when empty, tinted when below 6. */
+export function ReadOnlyValue({
+  value,
+  hintLow = false,
+  className,
+}: {
+  value: string;
+  hintLow?: boolean;
+  className?: string;
+}) {
+  if (value.trim() === "") {
+    return (
+      <span className={cn("text-muted-foreground/70", className)}>
+        <span aria-hidden>—</span>
+        <span className="sr-only">Sin cargar</span>
+      </span>
+    );
+  }
+  return (
+    <span
+      className={cn(
+        "text-[13px] text-foreground tabular-nums",
+        hintLow && isLowGrade(value) && "font-semibold text-danger",
+        className,
+      )}
+    >
+      {value}
+    </span>
+  );
+}
+
 export function ObservationCell({
   cell,
   studentName,
   value,
   onValueChange,
+  readOnly = false,
 }: {
   cell: string;
   studentName: string;
   value: string;
-  onValueChange: (value: string) => void;
+  onValueChange?: (value: string) => void;
+  /** Shows the text without letting it change. */
+  readOnly?: boolean;
 }) {
   const [open, setOpen] = useState(false);
   const filled = value.trim() !== "";
   const Icon = filled ? MessageSquareText : MessageSquarePlus;
+
+  if (readOnly && !filled) return <ReadOnlyValue value="" />;
 
   return (
     <Popover open={open} onOpenChange={setOpen}>
@@ -129,8 +165,8 @@ export function ObservationCell({
           className={cn(
             "relative inline-flex size-8 items-center justify-center rounded-md border transition-[border-color,box-shadow,background-color,color] duration-150 outline-none focus-visible:border-primary/70 focus-visible:ring-4 focus-visible:ring-primary/12",
             filled
-              ? "border-sky-200 bg-primary-soft text-primary hover:border-sky-300"
-              : "border-slate-200 bg-white text-slate-400 hover:border-slate-300 hover:text-slate-600",
+              ? "border-primary/25 bg-primary-soft text-primary-strong hover:border-primary/40"
+              : "border-border bg-card text-muted-foreground hover:border-input hover:text-foreground",
           )}
         >
           <Icon className="size-4" aria-hidden />
@@ -140,29 +176,35 @@ export function ObservationCell({
         </button>
       </PopoverTrigger>
       <PopoverContent align="end" className="w-[22rem] max-w-[calc(100vw-2rem)] p-0">
-        <div className="border-b border-slate-100 px-4 py-3">
+        <div className="border-b border-border px-4 py-3">
           <p className="text-sm font-semibold">Observación</p>
           <p className="truncate text-xs text-muted-foreground">{studentName}</p>
         </div>
-        <div className="p-4">
-          <Textarea
-            value={value}
-            onChange={(e) => onValueChange(e.target.value)}
-            rows={5}
-            maxLength={600}
-            placeholder="Comentario para la familia sobre el desempeño del bimestre."
-            className="min-h-28 resize-none text-sm leading-relaxed"
-            onKeyDown={(e) => {
-              if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) setOpen(false);
-            }}
-          />
-          <div className="mt-3 flex items-center justify-between">
-            <span className="text-xs text-muted-foreground tabular-nums">{value.length}/600</span>
-            <Button size="sm" onClick={() => setOpen(false)}>
-              Listo
-            </Button>
+        {readOnly ? (
+          <p className="max-h-60 overflow-y-auto p-4 text-sm leading-relaxed whitespace-pre-line text-foreground">
+            {value}
+          </p>
+        ) : (
+          <div className="p-4">
+            <Textarea
+              value={value}
+              onChange={(e) => onValueChange?.(e.target.value)}
+              rows={5}
+              maxLength={600}
+              placeholder="Comentario para la familia sobre el desempeño del bimestre."
+              className="min-h-28 resize-none text-sm leading-relaxed"
+              onKeyDown={(e) => {
+                if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) setOpen(false);
+              }}
+            />
+            <div className="mt-3 flex items-center justify-between">
+              <span className="text-xs text-muted-foreground tabular-nums">{value.length}/600</span>
+              <Button size="sm" onClick={() => setOpen(false)}>
+                Listo
+              </Button>
+            </div>
           </div>
-        </div>
+        )}
       </PopoverContent>
     </Popover>
   );

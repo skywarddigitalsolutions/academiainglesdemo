@@ -1,0 +1,260 @@
+"use client";
+
+import { useState, type FormEvent } from "react";
+import { Loader2 } from "lucide-react";
+import { toast } from "sonner";
+import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
+  GRADING_TYPES,
+  formatSchedule,
+  gradingTypeLabel,
+  parseSchedule,
+  type Course,
+} from "@/domain/course";
+import type { GradingType } from "@/domain/grading";
+import type { User } from "@/domain/user";
+import { errorMessage } from "@/lib/error-message";
+import { getServices } from "@/providers/services";
+
+export interface CourseFormState {
+  id?: string;
+  name: string;
+  days: string;
+  start: string;
+  end: string;
+  gradingType: GradingType;
+  teacherIds: string[];
+  nextCourseName: string;
+}
+
+export function newCourseForm(): CourseFormState {
+  return {
+    name: "",
+    days: "",
+    start: "",
+    end: "",
+    gradingType: "numeric",
+    teacherIds: [],
+    nextCourseName: "",
+  };
+}
+
+export function editCourseForm(course: Course): CourseFormState {
+  return {
+    id: course.id,
+    name: course.name,
+    ...parseSchedule(course.schedule),
+    gradingType: course.gradingType,
+    teacherIds: course.teacherIds,
+    nextCourseName: course.nextCourseName,
+  };
+}
+
+/** Create / edit a course: schedule, grading type and assigned teachers. */
+export function CourseDialog({
+  initial,
+  teachers,
+  hasStudents,
+  onClose,
+  onSaved,
+}: {
+  initial: CourseFormState;
+  teachers: User[];
+  /** The grading type cannot change once the course has students. */
+  hasStudents: boolean;
+  onClose: () => void;
+  onSaved: () => void;
+}) {
+  const [form, setForm] = useState(initial);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  function toggleTeacher(id: string, checked: boolean) {
+    setForm((f) => ({
+      ...f,
+      teacherIds: checked ? [...f.teacherIds, id] : f.teacherIds.filter((t) => t !== id),
+    }));
+  }
+
+  async function handleSubmit(event: FormEvent) {
+    event.preventDefault();
+    setBusy(true);
+    setError(null);
+    try {
+      const course = await getServices().admin.saveCourse({
+        id: form.id,
+        name: form.name,
+        schedule: formatSchedule(form),
+        gradingType: form.gradingType,
+        teacherIds: form.teacherIds,
+        nextCourseName: form.nextCourseName,
+      });
+      toast.success(
+        initial.id ? "Datos del curso actualizados." : `El curso ${course.name} fue creado.`,
+      );
+      onSaved();
+    } catch (err) {
+      setError(errorMessage(err));
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  const lockGrading = Boolean(initial.id) && hasStudents;
+
+  return (
+    <Dialog open onOpenChange={(open) => !open && onClose()}>
+      <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-lg">
+        <DialogHeader>
+          <DialogTitle>{initial.id ? "Editar curso" : "Nuevo curso"}</DialogTitle>
+          <DialogDescription>
+            El tipo de calificación se define por curso y aplica a todos sus boletines.
+          </DialogDescription>
+        </DialogHeader>
+        <form onSubmit={handleSubmit} className="flex flex-col gap-4">
+          <div className="grid gap-4 sm:grid-cols-2">
+            <div className="flex flex-col gap-1.5">
+              <Label htmlFor="co-name">Nombre</Label>
+              <Input
+                id="co-name"
+                value={form.name}
+                onChange={(e) => setForm({ ...form, name: e.target.value })}
+                placeholder="Ej.: 3° Grado B"
+                className="h-10"
+                required
+              />
+            </div>
+            <div className="flex flex-col gap-1.5">
+              <Label htmlFor="co-next">Curso siguiente</Label>
+              <Input
+                id="co-next"
+                value={form.nextCourseName}
+                onChange={(e) => setForm({ ...form, nextCourseName: e.target.value })}
+                placeholder="Ej.: 4° Grado B"
+                className="h-10"
+              />
+            </div>
+          </div>
+          <div className="flex flex-col gap-1.5">
+            <Label htmlFor="co-days">Días de cursada</Label>
+            <Input
+              id="co-days"
+              value={form.days}
+              onChange={(e) => setForm({ ...form, days: e.target.value })}
+              placeholder="Ej.: Lunes y miércoles"
+              className="h-10"
+              required
+            />
+          </div>
+          <div className="grid grid-cols-2 gap-4">
+            <div className="flex flex-col gap-1.5">
+              <Label htmlFor="co-start">Desde</Label>
+              <Input
+                id="co-start"
+                type="time"
+                value={form.start}
+                onChange={(e) => setForm({ ...form, start: e.target.value })}
+                className="h-10 tabular-nums"
+                required
+              />
+            </div>
+            <div className="flex flex-col gap-1.5">
+              <Label htmlFor="co-end">Hasta</Label>
+              <Input
+                id="co-end"
+                type="time"
+                value={form.end}
+                onChange={(e) => setForm({ ...form, end: e.target.value })}
+                className="h-10 tabular-nums"
+                required
+              />
+            </div>
+          </div>
+          <div className="flex flex-col gap-1.5">
+            <Label htmlFor="co-grading">Tipo de calificación</Label>
+            <Select
+              value={form.gradingType}
+              onValueChange={(value) => setForm({ ...form, gradingType: value as GradingType })}
+              disabled={lockGrading}
+            >
+              <SelectTrigger id="co-grading" className="h-10 w-full">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {GRADING_TYPES.map((type) => (
+                  <SelectItem key={type} value={type}>
+                    {gradingTypeLabel(type)}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            {lockGrading && (
+              <p className="text-xs text-muted-foreground">
+                No se puede cambiar porque el curso ya tiene alumnos.
+              </p>
+            )}
+          </div>
+          <fieldset className="flex flex-col gap-2">
+            <legend className="mb-2 text-sm font-medium">
+              Docentes asignados ({form.teacherIds.length})
+            </legend>
+            <div className="max-h-48 overflow-y-auto rounded-lg border p-2">
+              {teachers.length === 0 && (
+                <p className="px-2 py-2 text-sm text-muted-foreground">
+                  Todavía no hay docentes cargados.
+                </p>
+              )}
+              {teachers.map((t) => (
+                <label
+                  key={t.id}
+                  className="flex cursor-pointer items-center gap-3 rounded-md px-2 py-2 text-sm hover:bg-muted"
+                >
+                  <Checkbox
+                    checked={form.teacherIds.includes(t.id)}
+                    onCheckedChange={(v) => toggleTeacher(t.id, v === true)}
+                  />
+                  <span>
+                    {t.lastName}, {t.firstName}{" "}
+                    <span className="text-muted-foreground">({t.username})</span>
+                  </span>
+                </label>
+              ))}
+            </div>
+          </fieldset>
+          {error && (
+            <p role="alert" className="rounded-lg bg-destructive/10 px-3 py-2 text-sm text-destructive">
+              {error}
+            </p>
+          )}
+          <DialogFooter>
+            <Button type="button" variant="outline" onClick={onClose}>
+              Cancelar
+            </Button>
+            <Button type="submit" disabled={busy}>
+              {busy && <Loader2 className="animate-spin" aria-hidden />}
+              Guardar
+            </Button>
+          </DialogFooter>
+        </form>
+      </DialogContent>
+    </Dialog>
+  );
+}

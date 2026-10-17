@@ -21,6 +21,8 @@ export interface ChildSummary {
   publishedBimesters: number;
   /** Published bimesters not yet marked as read. */
   pendingAcknowledgements: number;
+  /** What the family may see of the report card (published data only). */
+  view: ParentReportCardView;
 }
 
 export interface ParentReportCard {
@@ -69,6 +71,7 @@ export function createParentUseCases(deps: UseCaseDeps) {
             ).length,
             pendingAcknowledgements: statuses.filter((s) => s === "published")
               .length,
+            view: toParentView(card),
           };
         }),
       );

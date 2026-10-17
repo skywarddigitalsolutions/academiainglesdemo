@@ -1,5 +1,13 @@
-import type { Course } from "@/domain/course";
+import { validateCourse, type Course } from "@/domain/course";
+import { createCourseNote, type CourseNote } from "@/domain/course-note";
+import { approveReview, returnReview, type PeriodReview } from "@/domain/period-review";
+import {
+  publishBimester,
+  publishClosing,
+  type ReportPeriod,
+} from "@/domain/report-card";
 import { DomainError } from "@/domain/errors";
+import type { GradingType } from "@/domain/grading";
 import {
   fullName,
   linkGuardian,
@@ -7,9 +15,16 @@ import {
   validateStudent,
   type Student,
 } from "@/domain/student";
-import type { User } from "@/domain/user";
+import { displayName, type User } from "@/domain/user";
 import { DEMO_PASSWORD } from "./demo-constants";
-import { summarizeProgress, type PeriodProgress } from "./progress";
+import {
+  findReview,
+  loadGradeSheet,
+  saveGradeSheetChanges,
+  type GradeSheet,
+  type GradeSheetChange,
+} from "./grade-sheet";
+import { isPublishable, summarizeProgress, type PeriodProgress } from "./progress";
 import {
   loadOrCreateReportCard,
   loadStudentReportCard,
@@ -23,6 +38,7 @@ export interface CourseOverview {
   teachers: User[];
   studentCount: number;
   progress: PeriodProgress[];
+  reviews: PeriodReview[];
 }
 
 export interface StudentInput {
@@ -42,6 +58,34 @@ export interface ParentInput {
   phone: string;
 }
 
+export interface CourseInput {
+  id?: string;
+  name: string;
+  /** Stored shape, e.g. "Lunes y miércoles · 14:00 a 15:30" (see formatSchedule). */
+  schedule: string;
+  gradingType: GradingType;
+  teacherIds: string[];
+  nextCourseName: string;
+}
+
+export interface TeacherInput {
+  id?: string;
+  firstName: string;
+  lastName: string;
+  username: string;
+  /** Required for new teachers; blank keeps the current one when editing. */
+  password: string;
+  email: string;
+  courseIds: string[];
+}
+
+export interface TeacherListItem {
+  teacher: User;
+  courses: Course[];
+}
+
+export const MIN_PASSWORD_LENGTH = 6;
+
 export interface StudentListItem {
   student: Student;
   course: Course | null;
@@ -54,7 +98,62 @@ export interface ParentListItem {
 }
 
 export function createAdminUseCases(deps: UseCaseDeps) {
-  const { courses, students, users, reportCards } = deps.repositories;
+  const { courses, students, users, reportCards, reviews, notes } = deps.repositories;
+
+  async function requirePendingReview(courseId: string, period: ReportPeriod) {
+    const review = await findReview(deps, courseId, period);
+    if (!review || review.status !== "pending") {
+      throw new DomainError("review-not-pending", "Este período no está pendiente de aprobación.");
+    }
+    return review;
+  }
+
+  async function authorName(adminId: string): Promise<string> {
+    const author = await users.getById(adminId);
+    return author ? displayName(author) : "Dirección";
+  }
+
+  async function writeNote(
+    adminId: string,
+    courseId: string,
+    text: string,
+    period: ReportPeriod | null,
+  ): Promise<CourseNote> {
+    const note = createCourseNote({
+      id: deps.ids.next("note"),
+      courseId,
+      year: deps.year,
+      authorId: adminId,
+      authorName: await authorName(adminId),
+      text,
+      period,
+      now: deps.clock.now(),
+    });
+    await notes.save(note);
+    return note;
+  }
+
+  async function requireTeacher(teacherId: string): Promise<User> {
+    const teacher = await users.getById(teacherId);
+    if (!teacher || teacher.role !== "teacher") throw notFound("el docente");
+    return teacher;
+  }
+
+  /** Normalizes and validates a username, rejecting one used by another account. */
+  async function availableUsername(raw: string, ownerId?: string): Promise<string> {
+    const username = raw.trim().toLowerCase();
+    if (!/^[a-z0-9._-]{3,}$/.test(username)) {
+      throw new DomainError(
+        "invalid-username",
+        "El usuario debe tener al menos 3 caracteres (letras, números, punto o guion).",
+      );
+    }
+    const taken = await users.findByUsername(username);
+    if (taken && taken.id !== ownerId) {
+      throw new DomainError("username-taken", "Ese nombre de usuario ya está en uso.");
+    }
+    return username;
+  }
 
   async function requireParent(parentId: string): Promise<User> {
     const parent = await users.getById(parentId);
@@ -73,13 +172,17 @@ export function createAdminUseCases(deps: UseCaseDeps) {
       const cards = await Promise.all(
         allStudents.map((student) => loadOrCreateReportCard(deps, student)),
       );
-      const overview: CourseOverview[] = allCourses.map((course) => ({
+      const courseReviews = await Promise.all(
+        allCourses.map((course) => reviews.listByCourse(course.id, deps.year)),
+      );
+      const overview: CourseOverview[] = allCourses.map((course, i) => ({
         course,
         teachers: teachers.filter((t) => course.teacherIds.includes(t.id)),
         studentCount: allStudents.filter((s) => s.courseId === course.id).length,
         progress: summarizeProgress(
           cards.filter((c) => c.courseId === course.id),
         ),
+        reviews: courseReviews[i],
       }));
       return {
         courses: overview,
@@ -97,11 +200,128 @@ export function createAdminUseCases(deps: UseCaseDeps) {
       return loadStudentReportCard(deps, studentId);
     },
 
+    /** Grade sheet of any course (Dirección is not limited to assignments). */
+    async getGradeSheet(courseId: string): Promise<GradeSheet> {
+      const course = await requireCourse(deps, courseId);
+      return loadGradeSheet(deps, course);
+    },
+
+    /** Approves the teacher's batch: its complete students are published to families. */
+    async approvePeriod(
+      adminId: string,
+      courseId: string,
+      period: ReportPeriod,
+    ): Promise<GradeSheet> {
+      const course = await requireCourse(deps, courseId);
+      const review = await requirePendingReview(courseId, period);
+      const now = deps.clock.now();
+      const { rows } = await loadGradeSheet(deps, course);
+      for (const { student, card } of rows) {
+        if (!review.studentIds.includes(student.id)) continue;
+        if (isPublishable(card, period) !== "ready") continue;
+        await reportCards.save(
+          period === "closing" ? publishClosing(card, now) : publishBimester(card, period, now),
+        );
+      }
+      await reviews.save(approveReview(review, adminId, now));
+      return loadGradeSheet(deps, course);
+    },
+
+    /** Returns the batch to the teacher; the observation is also kept as a course note. */
+    async returnPeriod(
+      adminId: string,
+      courseId: string,
+      period: ReportPeriod,
+      note: string,
+    ): Promise<GradeSheet> {
+      const course = await requireCourse(deps, courseId);
+      const review = await requirePendingReview(courseId, period);
+      const returned = returnReview(review, adminId, note, deps.clock.now());
+      await reviews.save(returned);
+      await writeNote(adminId, courseId, returned.returnNote ?? note, period);
+      return loadGradeSheet(deps, course);
+    },
+
+    async addCourseNote(
+      adminId: string,
+      courseId: string,
+      text: string,
+      period: ReportPeriod | null,
+    ): Promise<CourseNote> {
+      await requireCourse(deps, courseId);
+      return writeNote(adminId, courseId, text, period);
+    },
+
+    async listCourseNotes(courseId: string): Promise<CourseNote[]> {
+      await requireCourse(deps, courseId);
+      return notes.listByCourse(courseId, deps.year);
+    },
+
+    /**
+     * Corrections made by Dirección from the course sheet. Publication state is
+     * left untouched: drafts stay drafts and published periods stay published.
+     */
+    async saveGradeSheet<P extends ReportPeriod>(
+      courseId: string,
+      period: P,
+      changes: GradeSheetChange<P>[],
+    ): Promise<GradeSheet> {
+      const course = await requireCourse(deps, courseId);
+      return saveGradeSheetChanges(deps, course, period, changes);
+    },
+
     async listCourses(): Promise<CourseOverview[]> {
       return (await this.getOverview()).courses;
     },
 
-    async listTeachers() {
+    async saveCourse(input: CourseInput): Promise<Course> {
+      const existing = input.id ? await requireCourse(deps, input.id) : null;
+      for (const id of input.teacherIds) await requireTeacher(id);
+      const course = validateCourse({
+        id: existing?.id ?? deps.ids.next("course"),
+        name: input.name,
+        schedule: input.schedule,
+        gradingType: input.gradingType,
+        teacherIds: input.teacherIds,
+        nextCourseName: input.nextCourseName,
+      });
+      const key = course.name.toLocaleLowerCase("es");
+      const duplicated = (await courses.list()).some(
+        (c) => c.id !== course.id && c.name.trim().toLocaleLowerCase("es") === key,
+      );
+      if (duplicated) {
+        throw new DomainError("course-name-taken", "Ya existe un curso con ese nombre.");
+      }
+      if (
+        existing &&
+        existing.gradingType !== course.gradingType &&
+        (await students.listByCourse(existing.id)).length > 0
+      ) {
+        throw new DomainError(
+          "grading-type-locked",
+          "No se puede cambiar el tipo de calificación de un curso con alumnos.",
+        );
+      }
+      // Report cards, approval batches and notes are created lazily per course.
+      await courses.save(course);
+      return course;
+    },
+
+    async deleteCourse(courseId: string): Promise<void> {
+      await requireCourse(deps, courseId);
+      if ((await students.listByCourse(courseId)).length > 0) {
+        throw new DomainError(
+          "course-has-students",
+          "No se puede eliminar un curso con alumnos. Muévalos a otro curso primero.",
+        );
+      }
+      for (const review of await reviews.listByCourse(courseId, deps.year)) {
+        await reviews.delete(review.id);
+      }
+      await courses.delete(courseId);
+    },
+
+    async listTeachers(): Promise<TeacherListItem[]> {
       const [teachers, allCourses] = await Promise.all([
         users.listByRole("teacher"),
         courses.list(),
@@ -110,6 +330,64 @@ export function createAdminUseCases(deps: UseCaseDeps) {
         teacher,
         courses: allCourses.filter((c) => c.teacherIds.includes(teacher.id)),
       }));
+    },
+
+    /**
+     * Creates or edits a teacher. Course.teacherIds is the single source of the
+     * assignment, so the teacher's courses are written on each course.
+     */
+    async saveTeacher(input: TeacherInput): Promise<User> {
+      const existing = input.id ? await requireTeacher(input.id) : null;
+      if (!input.firstName.trim() || !input.lastName.trim()) {
+        throw new DomainError("invalid-teacher-name", "Ingrese nombre y apellido.");
+      }
+      const username = await availableUsername(input.username, existing?.id);
+      const password = input.password.trim();
+      if ((!existing || password) && password.length < MIN_PASSWORD_LENGTH) {
+        throw new DomainError(
+          "invalid-password",
+          `La contraseña debe tener al menos ${MIN_PASSWORD_LENGTH} caracteres.`,
+        );
+      }
+      const allCourses = await courses.list();
+      const wanted = new Set(input.courseIds);
+      for (const id of wanted) {
+        if (!allCourses.some((c) => c.id === id)) throw notFound("el curso");
+      }
+      const teacher: User = {
+        id: existing?.id ?? deps.ids.next("teacher"),
+        username,
+        password: password || (existing?.password ?? ""),
+        role: "teacher",
+        firstName: input.firstName.trim(),
+        lastName: input.lastName.trim(),
+        email: input.email.trim(),
+        phone: existing?.phone ?? "",
+      };
+      await users.save(teacher);
+      for (const course of allCourses) {
+        const assigned = course.teacherIds.includes(teacher.id);
+        if (wanted.has(course.id) && !assigned) {
+          await courses.save({ ...course, teacherIds: [...course.teacherIds, teacher.id] });
+        } else if (!wanted.has(course.id) && assigned) {
+          await courses.save({
+            ...course,
+            teacherIds: course.teacherIds.filter((id) => id !== teacher.id),
+          });
+        }
+      }
+      return teacher;
+    },
+
+    async deleteTeacher(teacherId: string): Promise<void> {
+      await requireTeacher(teacherId);
+      if ((await courses.listByTeacher(teacherId)).length > 0) {
+        throw new DomainError(
+          "teacher-has-courses",
+          "No se puede eliminar un docente con cursos asignados. Quítele los cursos primero.",
+        );
+      }
+      await users.delete(teacherId);
     },
 
     async listStudents(): Promise<StudentListItem[]> {
@@ -159,20 +437,10 @@ export function createAdminUseCases(deps: UseCaseDeps) {
     },
 
     async saveParent(input: ParentInput): Promise<User> {
-      const username = input.username.trim().toLowerCase();
       if (!input.firstName.trim() || !input.lastName.trim()) {
         throw new DomainError("invalid-parent-name", "Ingrese nombre y apellido.");
       }
-      if (!/^[a-z0-9._-]{3,}$/.test(username)) {
-        throw new DomainError(
-          "invalid-username",
-          "El usuario debe tener al menos 3 caracteres (letras, números, punto o guion).",
-        );
-      }
-      const taken = await users.findByUsername(username);
-      if (taken && taken.id !== input.id) {
-        throw new DomainError("username-taken", "Ese nombre de usuario ya está en uso.");
-      }
+      const username = await availableUsername(input.username, input.id);
       const existing = input.id ? await requireParent(input.id) : null;
       const parent: User = {
         id: existing?.id ?? deps.ids.next("parent"),

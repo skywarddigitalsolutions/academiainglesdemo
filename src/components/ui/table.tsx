@@ -3,7 +3,16 @@
 import * as React from "react"
 import { cn } from "cn"
 
-function Table({ className, ...props }: React.ComponentProps<"table">) {
+/**
+ * `stackOnMobile`: below md each row renders as a stacked block (see
+ * `.table-stack` in globals.css). Give every cell but the first a
+ * `data-label`, and the actions cell `data-stack="actions"`.
+ */
+function Table({
+  className,
+  stackOnMobile = false,
+  ...props
+}: React.ComponentProps<"table"> & { stackOnMobile?: boolean }) {
   return (
     <div
       data-slot="table-container"
@@ -11,7 +20,7 @@ function Table({ className, ...props }: React.ComponentProps<"table">) {
     >
       <table
         data-slot="table"
-        className={cn("w-full caption-bottom text-sm", className)}
+        className={cn("w-full caption-bottom text-sm", stackOnMobile && "table-stack", className)}
         {...props}
       />
     </div>

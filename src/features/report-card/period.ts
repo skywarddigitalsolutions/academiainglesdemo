@@ -4,6 +4,11 @@ export function periodShortLabel(period: ReportPeriod): string {
   return period === "closing" ? "Cierre" : `${period}° Bim`;
 }
 
+/** Shortest label, for the compact period pills on phones. */
+export function periodPillLabel(period: ReportPeriod): string {
+  return period === "closing" ? "Cierre" : `${period}°`;
+}
+
 export function periodLabel(period: ReportPeriod): string {
   return period === "closing" ? "Cierre del año" : `${period}° Bimestre`;
 }

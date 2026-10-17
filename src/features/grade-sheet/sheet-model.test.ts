@@ -1,16 +1,22 @@
 import { describe, expect, it } from "vitest";
 import {
   createEmptyReportCard,
+  publishBimester,
+  publishClosing,
   updateBimester,
   updateClosing,
 } from "@/domain/report-card";
 import {
   bimesterValues,
   closingValues,
+  defaultSheetPeriod,
+  editRowDraft,
+  isPeriodPublished,
   isRowComplete,
   parseGradeText,
   toBimesterPatch,
   toClosingPatch,
+  toPeriodPatch,
   validateRow,
 } from "./sheet-model";
 
@@ -115,5 +121,81 @@ describe("grade sheet model", () => {
         finalResult: "march",
       }),
     ).toBe(true);
+  });
+
+  it("tracks only the cells that differ from the stored values", () => {
+    const base = { application: "8", conduct: "Bueno", absences: "0", observation: "" };
+    const edited = editRowDraft(base, {}, "application", "9");
+    expect(edited).toEqual({ application: "9" });
+    expect(editRowDraft(base, edited, "application", "8")).toEqual({});
+  });
+
+  it("clears the final exam cells when the closing result leaves the final exam", () => {
+    const base = {
+      cuatrimestral: "5",
+      result: "Va a examen final",
+      modality: "Oral",
+      finalGrade: "7",
+      finalResult: "",
+    };
+    expect(editRowDraft(base, {}, "result", "Aprobado")).toEqual({
+      result: "Aprobado",
+      modality: "",
+      finalGrade: "",
+    });
+    const empty = { ...base, result: "", modality: "", finalGrade: "" };
+    expect(editRowDraft(empty, {}, "result", "Aprobado")).toEqual({ result: "Aprobado" });
+  });
+
+  it("builds the domain patch of the selected period", () => {
+    expect(
+      toPeriodPatch(
+        2,
+        { application: "7", conduct: "", absences: "3", observation: "" },
+        { gradingType: "numeric", nextCourseName: "6° Grado A" },
+      ),
+    ).toEqual({ applicationGrade: 7, conductGrade: null, absences: 3, observation: "" });
+    expect(
+      toPeriodPatch(
+        "closing",
+        { cuatrimestral: "", result: "Aprobado", modality: "", finalGrade: "", finalResult: "promoted" },
+        { gradingType: "numeric", nextCourseName: "6° Grado A" },
+      ),
+    ).toMatchObject({
+      result: "Aprobado",
+      finalResult: { kind: "promoted", nextCourseName: "6° Grado A" },
+    });
+  });
+
+  it("knows whether the period of a card is visible to families", () => {
+    const now = new Date("2026-10-15T13:00:00.000Z");
+    const filled = updateBimester(
+      card(),
+      1,
+      { applicationGrade: 8, conductGrade: "Bueno" },
+      "numeric",
+    );
+    expect(isPeriodPublished(filled, 1)).toBe(false);
+    expect(isPeriodPublished(publishBimester(filled, 1, now), 1)).toBe(true);
+    const closed = updateClosing(
+      card(),
+      { result: "Aprobado", finalResult: { kind: "march" } },
+      "numeric",
+    );
+    expect(isPeriodPublished(closed, "closing")).toBe(false);
+    expect(isPeriodPublished(publishClosing(closed, now), "closing")).toBe(true);
+  });
+
+  it("opens the sheet on the first period that is not fully published", () => {
+    const now = new Date("2026-10-15T13:00:00.000Z");
+    const first = publishBimester(
+      updateBimester(card(), 1, { applicationGrade: 8, conductGrade: "Bueno" }, "numeric"),
+      1,
+      now,
+    );
+    expect(defaultSheetPeriod([])).toBe(1);
+    expect(defaultSheetPeriod([card()])).toBe(1);
+    expect(defaultSheetPeriod([first])).toBe(2);
+    expect(defaultSheetPeriod([first, card()])).toBe(1);
   });
 });

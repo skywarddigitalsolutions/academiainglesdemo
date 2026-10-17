@@ -1,8 +1,13 @@
 import type { Course } from "@/domain/course";
+import { unreadNoteCount, type CourseNote } from "@/domain/course-note";
 import { DomainError } from "@/domain/errors";
 import {
-  publishBimester,
-  publishClosing,
+  isLockedForTeacher,
+  submitReview,
+  withdrawReview,
+  type PeriodReview,
+} from "@/domain/period-review";
+import {
   updateBimester,
   updateClosing,
   type BimesterNumber,
@@ -11,11 +16,18 @@ import {
   type ReportCard,
   type ReportPeriod,
 } from "@/domain/report-card";
-import type { Student } from "@/domain/student";
+import {
+  findReview,
+  isPeriodPublished,
+  loadGradeSheet,
+  loadGradeSheetRows,
+  saveGradeSheetChanges,
+  type GradeSheet,
+  type GradeSheetChange,
+} from "./grade-sheet";
 import { isPublishable, summarizeProgress, type PeriodProgress } from "./progress";
 import {
   forbidden,
-  loadOrCreateReportCard,
   loadStudentReportCard,
   requireCourse,
   type StudentReportCard,
@@ -26,32 +38,34 @@ export interface TeacherCourseSummary {
   course: Course;
   studentCount: number;
   progress: PeriodProgress[];
+  reviews: PeriodReview[];
+  /** Notes from Dirección written since the teacher last opened the course. */
+  unreadNotes: number;
 }
 
-export interface GradeSheetRow {
-  student: Student;
-  card: ReportCard;
-}
-
-export interface GradeSheet {
-  course: Course;
-  rows: GradeSheetRow[];
-}
-
-export type GradeSheetChange<P extends ReportPeriod> = {
-  studentId: string;
-  patch: P extends "closing" ? ClosingPatch : BimesterPatch;
-};
-
-export interface PublishResult {
-  /** Students whose period was published by this call. */
-  published: string[];
-  /** Students skipped because required grades are missing. */
+export interface SubmitResult {
+  /** Students sent to Dirección in this batch. */
+  submitted: string[];
+  /** Students left out because required grades are missing. */
   incomplete: string[];
 }
 
+function lockedError(): DomainError {
+  return new DomainError(
+    "period-pending-approval",
+    "Este período está esperando la aprobación de Dirección. Retire el envío para editarlo.",
+  );
+}
+
+function publishedError(): DomainError {
+  return new DomainError(
+    "period-published",
+    "Las notas publicadas solo las puede corregir Dirección.",
+  );
+}
+
 export function createTeacherUseCases(deps: UseCaseDeps) {
-  const { courses, students, reportCards } = deps.repositories;
+  const { courses, reportCards, reviews, notes } = deps.repositories;
 
   async function requireAssignedCourse(teacherId: string, courseId: string) {
     const course = await requireCourse(deps, courseId);
@@ -68,36 +82,19 @@ export function createTeacherUseCases(deps: UseCaseDeps) {
     return data;
   }
 
-  async function loadRows(course: Course): Promise<GradeSheetRow[]> {
-    const list = await students.listByCourse(course.id);
-    return Promise.all(
-      list.map(async (student) => ({
-        student,
-        card: await loadOrCreateReportCard(deps, student),
-      })),
-    );
-  }
-
+  /** Single-student edits follow the same rules as the sheet. */
   async function change(
     teacherId: string,
     studentId: string,
+    period: ReportPeriod,
     apply: (data: StudentReportCard) => ReportCard,
   ): Promise<ReportCard> {
     const data = await requireAssignedStudent(teacherId, studentId);
+    if (isLockedForTeacher(await findReview(deps, data.course.id, period))) throw lockedError();
+    if (isPeriodPublished(data.card, period)) throw publishedError();
     const updated = apply(data);
     await reportCards.save(updated);
     return updated;
-  }
-
-  function applyPatch(
-    card: ReportCard,
-    period: ReportPeriod,
-    patch: BimesterPatch | ClosingPatch,
-    course: Course,
-  ): ReportCard {
-    return period === "closing"
-      ? updateClosing(card, patch as ClosingPatch, course.gradingType)
-      : updateBimester(card, period, patch as BimesterPatch, course.gradingType);
   }
 
   return {
@@ -105,11 +102,18 @@ export function createTeacherUseCases(deps: UseCaseDeps) {
       const assigned = await courses.listByTeacher(teacherId);
       return Promise.all(
         assigned.map(async (course) => {
-          const rows = await loadRows(course);
+          const [rows, courseReviews, courseNotes, seenAt] = await Promise.all([
+            loadGradeSheetRows(deps, course),
+            reviews.listByCourse(course.id, deps.year),
+            notes.listByCourse(course.id, deps.year),
+            notes.getSeenAt(teacherId, course.id),
+          ]);
           return {
             course,
             studentCount: rows.length,
             progress: summarizeProgress(rows.map((r) => r.card)),
+            reviews: courseReviews,
+            unreadNotes: unreadNoteCount(courseNotes, seenAt),
           };
         }),
       );
@@ -117,12 +121,13 @@ export function createTeacherUseCases(deps: UseCaseDeps) {
 
     async getGradeSheet(teacherId: string, courseId: string): Promise<GradeSheet> {
       const course = await requireAssignedCourse(teacherId, courseId);
-      return { course, rows: await loadRows(course) };
+      return loadGradeSheet(deps, course);
     },
 
     /**
-     * Saves the changed rows of one period as drafts (published periods stay
-     * published). Every row is validated before anything is written.
+     * Saves the changed rows of one period as drafts. The period cannot change
+     * while Dirección reviews it, and published students are corrected by
+     * Dirección only.
      */
     async saveGradeSheet<P extends ReportPeriod>(
       teacherId: string,
@@ -131,46 +136,58 @@ export function createTeacherUseCases(deps: UseCaseDeps) {
       changes: GradeSheetChange<P>[],
     ): Promise<GradeSheet> {
       const course = await requireAssignedCourse(teacherId, courseId);
-      const rows = await loadRows(course);
-      const updated = changes.map(({ studentId, patch }) => {
-        const row = rows.find((r) => r.student.id === studentId);
-        if (!row) {
-          throw new DomainError(
-            "student-not-in-course",
-            "El alumno no pertenece a este curso.",
-          );
-        }
-        return applyPatch(row.card, period, patch, course);
+      if (isLockedForTeacher(await findReview(deps, courseId, period))) throw lockedError();
+      return saveGradeSheetChanges(deps, course, period, changes, ({ card }) => {
+        if (isPeriodPublished(card, period)) throw publishedError();
       });
-      for (const card of updated) await reportCards.save(card);
-      return { course, rows: await loadRows(course) };
     },
 
-    /** Publishes the period for every student with the required grades. */
-    async publishGradeSheet(
+    /** Sends every complete, unpublished student of the period to Dirección. */
+    async submitForApproval(
       teacherId: string,
       courseId: string,
       period: ReportPeriod,
-    ): Promise<PublishResult> {
+    ): Promise<SubmitResult> {
       const course = await requireAssignedCourse(teacherId, courseId);
-      const rows = await loadRows(course);
-      const now = deps.clock.now();
-      const result: PublishResult = { published: [], incomplete: [] };
+      const rows = await loadGradeSheetRows(deps, course);
+      const result: SubmitResult = { submitted: [], incomplete: [] };
       for (const { student, card } of rows) {
         const state = isPublishable(card, period);
-        if (state === "already-published") continue;
-        if (state === "incomplete") {
-          result.incomplete.push(student.id);
-          continue;
-        }
-        await reportCards.save(
-          period === "closing"
-            ? publishClosing(card, now)
-            : publishBimester(card, period, now),
-        );
-        result.published.push(student.id);
+        if (state === "ready") result.submitted.push(student.id);
+        else if (state === "incomplete") result.incomplete.push(student.id);
       }
+      const review = submitReview(await findReview(deps, courseId, period), {
+        courseId,
+        year: deps.year,
+        period,
+        studentIds: result.submitted,
+        teacherId,
+        now: deps.clock.now(),
+      });
+      await reviews.save(review);
       return result;
+    },
+
+    /** Takes back a batch that Dirección has not decided yet. */
+    async withdrawSubmission(
+      teacherId: string,
+      courseId: string,
+      period: ReportPeriod,
+    ): Promise<GradeSheet> {
+      const course = await requireAssignedCourse(teacherId, courseId);
+      const review = await findReview(deps, courseId, period);
+      if (!review) throw new DomainError("review-not-pending", "Este período no fue enviado.");
+      withdrawReview(review);
+      await reviews.delete(review.id);
+      return loadGradeSheet(deps, course);
+    },
+
+    /** Notes from Dirección (newest first); opening them marks them as read. */
+    async listCourseNotes(teacherId: string, courseId: string): Promise<CourseNote[]> {
+      await requireAssignedCourse(teacherId, courseId);
+      const list = await notes.listByCourse(courseId, deps.year);
+      await notes.markSeen(teacherId, courseId, deps.clock.now().toISOString());
+      return list;
     },
 
     getReportCard(teacherId: string, studentId: string) {
@@ -183,13 +200,13 @@ export function createTeacherUseCases(deps: UseCaseDeps) {
       bimester: BimesterNumber,
       patch: BimesterPatch,
     ) {
-      return change(teacherId, studentId, ({ card, course }) =>
+      return change(teacherId, studentId, bimester, ({ card, course }) =>
         updateBimester(card, bimester, patch, course.gradingType),
       );
     },
 
     saveClosing(teacherId: string, studentId: string, patch: ClosingPatch) {
-      return change(teacherId, studentId, ({ card, course }) =>
+      return change(teacherId, studentId, "closing", ({ card, course }) =>
         updateClosing(card, patch, course.gradingType),
       );
     },

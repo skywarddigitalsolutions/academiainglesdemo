@@ -91,3 +91,24 @@ describe("demo seed", () => {
     expect(buildSeed(2026)).toEqual(seed);
   });
 });
+
+describe("demo seed approval states", () => {
+  it("has one period pending approval and one returned with a note", () => {
+    const byId = Object.fromEntries(seed.reviews.map((r) => [r.id, r]));
+    expect(byId["rv-c-1y-2026-3"]).toMatchObject({ status: "pending", submittedBy: "u-teacher-2" });
+    expect(byId["rv-c-1y-2026-3"].studentIds.length).toBeGreaterThan(0);
+    expect(byId["rv-c-5a-2026-3"]).toMatchObject({ status: "returned", decidedBy: "u-admin" });
+    expect(byId["rv-c-5a-2026-3"].returnNote).toBeTruthy();
+    expect(seed.notes.find((n) => n.courseId === "c-5a" && n.period === 3)?.text).toBe(
+      byId["rv-c-5a-2026-3"].returnNote,
+    );
+  });
+
+  it("keeps pending batches unpublished", () => {
+    const pending = seed.reviews.find((r) => r.status === "pending")!;
+    for (const id of pending.studentIds) {
+      const card = seed.reportCards.find((c) => c.studentId === id)!;
+      expect(getBimesterStatus(getBimester(card, 3))).toBe("draft");
+    }
+  });
+});

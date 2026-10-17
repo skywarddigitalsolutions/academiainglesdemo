@@ -1,6 +1,8 @@
 import type {
+  CourseNoteRepository,
   CourseRepository,
   DemoDataManager,
+  PeriodReviewRepository,
   ReportCardRepository,
   Repositories,
   SessionStore,
@@ -8,6 +10,8 @@ import type {
   UserRepository,
 } from "@/application/ports";
 import type { Course } from "@/domain/course";
+import type { CourseNote } from "@/domain/course-note";
+import type { PeriodReview } from "@/domain/period-review";
 import type { ReportCard } from "@/domain/report-card";
 import type { Student } from "@/domain/student";
 import type { Role, Session, User } from "@/domain/user";
@@ -15,14 +19,20 @@ import { buildSeed, type SeedData } from "../seed/seed-data";
 import { LocalStorageCollection } from "./local-storage-collection";
 import { STORAGE_PREFIX, type StorageLike } from "./storage";
 
-/** Bump when the stored shape changes so old browsers get a fresh seed. */
-const DATA_VERSION = "v2:";
+/**
+ * Bump when the stored shape changes so old browsers get a fresh seed.
+ * v3: approval batches and notes from Dirección (older data is ignored).
+ */
+const DATA_VERSION = "v3:";
 
 const KEYS = {
   users: `${STORAGE_PREFIX}${DATA_VERSION}users`,
   courses: `${STORAGE_PREFIX}${DATA_VERSION}courses`,
   students: `${STORAGE_PREFIX}${DATA_VERSION}students`,
   reportCards: `${STORAGE_PREFIX}${DATA_VERSION}report-cards`,
+  reviews: `${STORAGE_PREFIX}${DATA_VERSION}period-reviews`,
+  notes: `${STORAGE_PREFIX}${DATA_VERSION}course-notes`,
+  noteReads: `${STORAGE_PREFIX}${DATA_VERSION}course-note-reads`,
   session: `${STORAGE_PREFIX}session`,
 } as const;
 
@@ -68,6 +78,12 @@ class LocalStorageCourseRepository implements CourseRepository {
   async listByTeacher(teacherId: string) {
     return this.items.filter((c) => c.teacherIds.includes(teacherId));
   }
+  async save(course: Course) {
+    this.items.upsert(course);
+  }
+  async delete(id: string) {
+    this.items.remove(id);
+  }
 }
 
 class LocalStorageStudentRepository implements StudentRepository {
@@ -109,6 +125,50 @@ class LocalStorageReportCardRepository implements ReportCardRepository {
   }
   async deleteByStudent(studentId: string) {
     this.items.removeWhere((c) => c.studentId === studentId);
+  }
+}
+
+class LocalStoragePeriodReviewRepository implements PeriodReviewRepository {
+  constructor(private readonly items: LocalStorageCollection<PeriodReview>) {}
+
+  async listByCourse(courseId: string, year: number) {
+    return this.items.filter((r) => r.courseId === courseId && r.year === year);
+  }
+  async getById(id: string) {
+    return this.items.find((r) => r.id === id);
+  }
+  async save(review: PeriodReview) {
+    this.items.upsert(review);
+  }
+  async delete(id: string) {
+    this.items.remove(id);
+  }
+}
+
+interface NoteRead {
+  id: string;
+  seenAt: string;
+}
+
+class LocalStorageCourseNoteRepository implements CourseNoteRepository {
+  constructor(
+    private readonly items: LocalStorageCollection<CourseNote>,
+    private readonly reads: LocalStorageCollection<NoteRead>,
+  ) {}
+
+  async listByCourse(courseId: string, year: number) {
+    return this.items
+      .filter((n) => n.courseId === courseId && n.year === year)
+      .sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+  }
+  async save(note: CourseNote) {
+    this.items.upsert(note);
+  }
+  async getSeenAt(teacherId: string, courseId: string) {
+    return this.reads.find((r) => r.id === `${teacherId}:${courseId}`)?.seenAt ?? null;
+  }
+  async markSeen(teacherId: string, courseId: string, at: string) {
+    this.reads.upsert({ id: `${teacherId}:${courseId}`, seenAt: at });
   }
 }
 
@@ -164,10 +224,13 @@ export function createLocalStorageRepositories(
     KEYS.reportCards,
     () => seed().reportCards,
   );
+  const reviews = new LocalStorageCollection(storage, KEYS.reviews, () => seed().reviews);
+  const notes = new LocalStorageCollection(storage, KEYS.notes, () => seed().notes);
+  const noteReads = new LocalStorageCollection<NoteRead>(storage, KEYS.noteReads, () => []);
 
   const demoData: DemoDataManager = {
     async reset() {
-      for (const collection of [users, courses, students, reportCards]) {
+      for (const collection of [users, courses, students, reportCards, reviews, notes, noteReads]) {
         collection.reset();
       }
     },
@@ -178,6 +241,8 @@ export function createLocalStorageRepositories(
     courses: new LocalStorageCourseRepository(courses),
     students: new LocalStorageStudentRepository(students),
     reportCards: new LocalStorageReportCardRepository(reportCards),
+    reviews: new LocalStoragePeriodReviewRepository(reviews),
+    notes: new LocalStorageCourseNoteRepository(notes, noteReads),
     session: new LocalStorageSessionStore(storage),
     demoData,
   };

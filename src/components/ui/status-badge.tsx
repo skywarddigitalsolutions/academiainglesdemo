@@ -8,13 +8,13 @@ const TONES: Record<StatusTone, string> = {
   success: "border-success-border bg-success-soft text-success",
   warning: "border-warning-border bg-warning-soft text-warning",
   danger: "border-danger-border bg-danger-soft text-danger",
-  info: "border-sky-200/80 bg-primary-soft text-primary",
+  info: "border-primary/20 bg-primary-soft text-primary-strong",
 };
 
 const DOTS: Record<StatusTone, string> = {
   neutral: "bg-slate-400",
   success: "bg-success",
-  warning: "bg-amber-500",
+  warning: "bg-warning",
   danger: "bg-danger",
   info: "bg-primary",
 };

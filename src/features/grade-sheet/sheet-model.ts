@@ -1,3 +1,4 @@
+import { summarizePeriod } from "@/application/progress";
 import {
   isConceptualGrade,
   isValidGrade,
@@ -8,6 +9,7 @@ import {
   CLOSING_RESULTS,
   FINAL_EXAM_MODALITIES,
   getBimester,
+  REPORT_PERIODS,
   type BimesterNumber,
   type BimesterPatch,
   type ClosingPatch,
@@ -147,6 +149,63 @@ export function toClosingPatch(
           ? { kind: "march" }
           : null,
   };
+}
+
+/** Converts the text values of a row into the domain patch of the period. */
+export function toPeriodPatch(
+  period: ReportPeriod,
+  values: RowValues,
+  course: { gradingType: GradingType; nextCourseName: string },
+): BimesterPatch | ClosingPatch {
+  return period === "closing"
+    ? toClosingPatch(values as ClosingRowValues, course.gradingType, course.nextCourseName)
+    : toBimesterPatch(values as BimesterRowValues, course.gradingType);
+}
+
+/** Cells of one row that differ from the stored values. */
+export type RowDraft = Partial<Record<string, string>>;
+
+const FINAL_EXAM_FIELDS = ["modality", "finalGrade"] as const;
+
+/**
+ * Applies one cell edit to the draft of a row, keeping only the cells that
+ * differ from the stored values. Leaving "Va a examen final" clears the final
+ * exam cells. An empty result means the row has no pending changes.
+ */
+export function editRowDraft(
+  base: RowValues,
+  draft: RowDraft,
+  field: string,
+  value: string,
+): RowDraft {
+  const stored = base as unknown as Record<string, string>;
+  const next: RowDraft = { ...draft };
+  const set = (key: string, text: string) => {
+    if (stored[key] === text) delete next[key];
+    else next[key] = text;
+  };
+  set(field, value);
+  if (field === "result" && value !== "Va a examen final") {
+    for (const key of FINAL_EXAM_FIELDS) set(key, "");
+  }
+  return next;
+}
+
+/** First period that still has students without publishing (1 when none). */
+export function defaultSheetPeriod(cards: ReportCard[]): ReportPeriod {
+  return (
+    REPORT_PERIODS.find((p) => {
+      const progress = summarizePeriod(cards, p);
+      return progress.published < progress.total;
+    }) ?? 1
+  );
+}
+
+/** Whether the period of a card is already visible to families. */
+export function isPeriodPublished(card: ReportCard, period: ReportPeriod): boolean {
+  return period === "closing"
+    ? card.closing.publishedAt !== null
+    : getBimester(card, period).publishedAt !== null;
 }
 
 /** Mirrors the domain rule used to publish a row. */

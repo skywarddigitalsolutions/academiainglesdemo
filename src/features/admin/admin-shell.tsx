@@ -3,6 +3,7 @@
 import type { ReactNode } from "react";
 import {
   BookOpen,
+  ClipboardList,
   GraduationCap,
   LayoutDashboard,
   Users,
@@ -13,6 +14,7 @@ import { AppShell, type NavItem } from "@/components/layout/app-shell";
 const NAV: NavItem[] = [
   { label: "Inicio", href: "/admin", icon: LayoutDashboard, exact: true },
   { label: "Alumnos", href: "/admin/students", icon: Users },
+  { label: "Notas", href: "/admin/grades", icon: ClipboardList },
   { label: "Familias", href: "/admin/parents", icon: UsersRound },
   { label: "Cursos", href: "/admin/courses", icon: BookOpen },
   { label: "Docentes", href: "/admin/teachers", icon: GraduationCap },

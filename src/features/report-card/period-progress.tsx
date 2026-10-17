@@ -1,4 +1,3 @@
-import Link from "next/link";
 import type { PeriodProgress } from "@/application/progress";
 import { cn } from "@/lib/utils";
 import { periodShortLabel } from "./period";
@@ -18,11 +17,11 @@ export function ProgressBar({
   const pct = (n: number) => (total === 0 ? 0 : Math.round((n / total) * 100));
   return (
     <div
-      className={cn("relative h-1.5 overflow-hidden rounded-full bg-slate-100", className)}
+      className={cn("relative h-1.5 overflow-hidden rounded-full bg-primary-tint ring-1 ring-primary/10 ring-inset", className)}
       aria-hidden
     >
       <div
-        className="absolute inset-y-0 left-0 rounded-full bg-sky-200 transition-[width] duration-300"
+        className="absolute inset-y-0 left-0 rounded-full bg-navy-muted transition-[width] duration-300"
         style={{ width: `${pct(complete)}%` }}
       />
       <div
@@ -37,7 +36,7 @@ export function ProgressLegend({ className }: { className?: string }) {
   return (
     <div className={cn("flex items-center gap-4 text-xs text-muted-foreground", className)}>
       <span className="inline-flex items-center gap-1.5">
-        <span className="size-2 rounded-full bg-sky-200" aria-hidden />
+        <span className="size-2 rounded-full bg-navy-muted" aria-hidden />
         Cargado
       </span>
       <span className="inline-flex items-center gap-1.5">
@@ -49,21 +48,14 @@ export function ProgressLegend({ className }: { className?: string }) {
 }
 
 function statusText(p: PeriodProgress): { text: string; tone: string } {
-  if (p.total === 0) return { text: "Sin alumnos", tone: "text-slate-400" };
+  if (p.total === 0) return { text: "Sin alumnos", tone: "text-muted-foreground" };
   if (p.published === p.total) return { text: "Publicado", tone: "text-primary" };
-  if (p.complete === 0) return { text: "Sin cargar", tone: "text-slate-400" };
+  if (p.complete === 0) return { text: "Sin cargar", tone: "text-muted-foreground" };
   return { text: `${p.complete}/${p.total} cargados`, tone: "text-slate-700" };
 }
 
 /** One row per period with a bar and a short status. */
-export function PeriodProgressList({
-  progress,
-  hrefFor,
-}: {
-  progress: PeriodProgress[];
-  /** When given, each row links to the grade sheet of that period. */
-  hrefFor?: (p: PeriodProgress) => string;
-}) {
+export function PeriodProgressList({ progress }: { progress: PeriodProgress[] }) {
   return (
     <ul className="flex flex-col">
       {progress.map((p) => {
@@ -87,19 +79,9 @@ export function PeriodProgressList({
         const label = `${periodShortLabel(p.period)}: ${p.complete} de ${p.total} cargados, ${p.published} publicados`;
         return (
           <li key={String(p.period)}>
-            {hrefFor ? (
-              <Link
-                href={hrefFor(p)}
-                aria-label={label}
-                className="-mx-2 flex items-center gap-3 rounded-md px-2 py-1.5 transition-colors duration-150 hover:bg-slate-50 focus-visible:ring-2 focus-visible:ring-primary/30 focus-visible:outline-none"
-              >
-                {content}
-              </Link>
-            ) : (
-              <div className="flex items-center gap-3 py-1.5" aria-label={label}>
-                {content}
-              </div>
-            )}
+            <div className="flex items-center gap-3 py-1.5" aria-label={label}>
+              {content}
+            </div>
           </li>
         );
       })}

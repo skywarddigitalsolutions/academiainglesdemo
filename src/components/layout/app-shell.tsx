@@ -2,8 +2,8 @@
 
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { Suspense, useState, type ComponentProps, type ReactNode } from "react";
-import { LogOut, Menu, PanelLeft, type LucideIcon } from "lucide-react";
+import { Suspense, useState, useSyncExternalStore, type ComponentProps, type ReactNode } from "react";
+import { ChevronLeft, ChevronRight, LogOut, Menu, type LucideIcon } from "lucide-react";
 import { LogoCrest } from "@/components/brand/logo";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet";
@@ -11,7 +11,6 @@ import { ROLE_LABELS, type Role } from "@/domain/user";
 import { ResetDemoButton } from "@/features/demo/reset-demo-button";
 import { cn } from "@/lib/utils";
 import { useSession } from "@/providers/session-provider";
-import { BreadcrumbProvider, Breadcrumbs } from "./breadcrumbs";
 
 export interface NavChild {
   href: string;
@@ -32,6 +31,47 @@ function matches(pathname: string, href: string, exact = false) {
   return exact ? pathname === href : pathname === href || pathname.startsWith(`${href}/`);
 }
 
+const COLLAPSED_KEY = "panel-sidebar-collapsed";
+
+/*
+ * Collapsed sidebar preference, remembered per browser (best effort): a tiny
+ * external store over localStorage, with an in-memory value when storage is
+ * unavailable. The server snapshot is always "expanded".
+ */
+let collapsedInMemory: boolean | null = null;
+const collapsedListeners = new Set<() => void>();
+
+function readCollapsed(): boolean {
+  if (collapsedInMemory !== null) return collapsedInMemory;
+  try {
+    return window.localStorage.getItem(COLLAPSED_KEY) === "1";
+  } catch {
+    return false;
+  }
+}
+
+function subscribeCollapsed(listener: () => void) {
+  collapsedListeners.add(listener);
+  return () => {
+    collapsedListeners.delete(listener);
+  };
+}
+
+function useCollapsed(): [boolean, () => void] {
+  const collapsed = useSyncExternalStore(subscribeCollapsed, readCollapsed, () => false);
+  function toggle() {
+    const next = !readCollapsed();
+    collapsedInMemory = next;
+    try {
+      window.localStorage.setItem(COLLAPSED_KEY, next ? "1" : "0");
+    } catch {
+      // Ignore: the preference is just not remembered.
+    }
+    collapsedListeners.forEach((listener) => listener());
+  }
+  return [collapsed, toggle];
+}
+
 export function AppShell({
   role,
   nav,
@@ -41,20 +81,38 @@ export function AppShell({
   nav: NavItem[];
   children: ReactNode;
 }) {
-  const [collapsed, setCollapsed] = useState(false);
+  const [collapsed, toggleCollapsed] = useCollapsed();
   const [mobileOpen, setMobileOpen] = useState(false);
+  const home = nav.find((item) => item.href)?.href ?? "/";
 
   return (
-    <BreadcrumbProvider>
+    <>
       <div className="min-h-screen bg-background">
         {/* Desktop sidebar */}
         <aside
+          id="panel-sidebar"
           className={cn(
-            "fixed inset-y-0 left-0 z-40 hidden transition-[width] duration-200 md:block print:hidden",
-            collapsed ? "w-16" : "w-64",
+            "fixed inset-y-0 left-0 z-40 hidden transition-[width] duration-200 motion-reduce:transition-none md:block print:hidden",
+            collapsed ? "w-[4.5rem]" : "w-64",
           )}
         >
           <Sidebar role={role} nav={nav} collapsed={collapsed} />
+          {/* Collapse handle, centered on the sidebar edge. */}
+          <button
+            type="button"
+            onClick={toggleCollapsed}
+            aria-controls="panel-sidebar"
+            aria-expanded={!collapsed}
+            aria-label={collapsed ? "Expandir menú" : "Contraer menú"}
+            title={collapsed ? "Expandir menú" : "Contraer menú"}
+            className="absolute top-1/2 -right-3.5 z-10 flex size-7 -translate-y-1/2 items-center justify-center rounded-full border border-white/20 bg-sidebar-accent text-white shadow-[0_1px_3px_rgb(4_26_42/0.25)] transition-[background-color,border-color,transform] duration-150 hover:scale-110 hover:border-white/50 hover:bg-primary-strong focus-visible:border-white focus-visible:bg-primary-strong focus-visible:ring-4 focus-visible:ring-primary/35 focus-visible:outline-none motion-reduce:transition-none motion-reduce:hover:scale-100"
+          >
+            {collapsed ? (
+              <ChevronRight className="size-4" aria-hidden />
+            ) : (
+              <ChevronLeft className="size-4" aria-hidden />
+            )}
+          </button>
         </aside>
 
         {/* Mobile drawer */}
@@ -62,7 +120,7 @@ export function AppShell({
           <SheetContent
             side="left"
             aria-describedby={undefined}
-            className="border-none bg-sidebar p-0 text-sidebar-foreground [&>button]:text-white"
+            className="w-[min(18rem,85vw)] border-none bg-navy p-0 text-sidebar-foreground [&>button]:text-white"
           >
             <SheetTitle className="sr-only">Menú</SheetTitle>
             <Sidebar role={role} nav={nav} onNavigate={() => setMobileOpen(false)} />
@@ -71,39 +129,37 @@ export function AppShell({
 
         <div
           className={cn(
-            "flex min-h-screen flex-col transition-[padding] duration-200 print:pl-0",
-            collapsed ? "md:pl-16" : "md:pl-64",
+            "flex min-h-screen min-w-0 flex-col transition-[padding] duration-200 motion-reduce:transition-none print:pl-0",
+            collapsed ? "md:pl-[4.5rem]" : "md:pl-64",
           )}
         >
-          <header className="sticky top-0 z-30 flex h-14 items-center gap-2 border-b border-slate-200/80 bg-white/85 px-4 backdrop-blur-md sm:px-6 print:hidden">
+          {/* Phones and tablets only: on desktop the sidebar carries the brand. */}
+          <header className="sticky top-0 z-30 flex h-14 items-center gap-1 border-b border-border bg-card/90 px-2 backdrop-blur-md sm:px-4 md:hidden print:hidden">
             <Button
               variant="ghost"
               size="icon"
-              className="-ml-2 md:hidden"
+              className="size-11 shrink-0 text-navy"
               onClick={() => setMobileOpen(true)}
               aria-label="Abrir menú"
             >
-              <Menu />
+              <Menu className="size-5" />
             </Button>
-            <Button
-              variant="ghost"
-              size="icon"
-              className="-ml-2 hidden text-muted-foreground md:inline-flex"
-              onClick={() => setCollapsed((c) => !c)}
-              aria-label={collapsed ? "Expandir barra lateral" : "Contraer barra lateral"}
-              aria-pressed={collapsed}
+            <Link
+              href={home}
+              className="flex min-h-11 min-w-0 items-center gap-2 rounded-md px-1 focus-visible:ring-2 focus-visible:ring-primary/40 focus-visible:outline-none"
             >
-              <PanelLeft />
-            </Button>
-            <span className="mr-1 hidden h-5 w-px bg-border md:block" aria-hidden />
-            <Breadcrumbs />
+              <LogoCrest decorative className="h-8 shrink-0" />
+              <span className="truncate font-serif text-[0.95rem] font-semibold text-navy">
+                Inmaculada Concepción
+              </span>
+            </Link>
           </header>
-          <main className="mx-auto w-full max-w-7xl flex-1 px-4 pt-8 pb-16 sm:px-6 lg:px-10 print:max-w-none print:p-0">
+          <main className="mx-auto w-full max-w-7xl min-w-0 flex-1 px-4 pt-6 pb-16 md:pt-10 sm:px-6 lg:px-10 print:max-w-none print:p-0">
             {children}
           </main>
         </div>
       </div>
-    </BreadcrumbProvider>
+    </>
   );
 }
 
@@ -155,32 +211,31 @@ function SidebarBody({
   const home = nav.find((item) => item.href)?.href ?? "/";
 
   return (
-    <div className="flex h-full flex-col bg-sidebar text-sidebar-foreground">
+    <div className="navy-grain flex h-full flex-col text-sidebar-foreground">
       <Link
         href={home}
         onClick={onNavigate}
+        title={collapsed ? "Instituto Inmaculada Concepción" : undefined}
         className={cn(
-          "relative flex h-16 shrink-0 items-center gap-3 text-white focus-visible:outline-none",
+          "flex h-[4.5rem] shrink-0 items-center gap-3 border-b border-white/10 text-white focus-visible:ring-2 focus-visible:ring-navy-muted/60 focus-visible:outline-none focus-visible:ring-inset",
           collapsed ? "justify-center px-2" : "px-5",
         )}
       >
         <LogoCrest className="h-9 shrink-0" />
         {!collapsed && (
           <span className="min-w-0 leading-tight">
-            <span className="block truncate text-[13px] font-semibold tracking-[-0.01em]">
+            <span className="block font-serif text-[0.95rem] font-semibold">
               Inmaculada Concepción
             </span>
             <span className="block truncate text-xs text-sidebar-muted">Boletín digital</span>
           </span>
         )}
-        {/* Hairline tied to the logo: the only place gold is used in the panels. */}
-        <span
-          aria-hidden
-          className="absolute inset-x-5 bottom-0 h-px bg-gradient-to-r from-gold/50 via-gold/15 to-transparent"
-        />
       </Link>
 
-      <nav aria-label="Navegación principal" className="flex-1 overflow-y-auto px-3 py-5">
+      <nav
+        aria-label="Navegación principal"
+        className="flex-1 overflow-x-hidden overflow-y-auto px-3 py-5"
+      >
         <ul className="flex flex-col gap-1">
           {nav.map((item) => (
             <SidebarItem
@@ -194,12 +249,15 @@ function SidebarBody({
         </ul>
       </nav>
 
-      <div className="shrink-0 border-t border-sidebar-border p-3">
+      <div className="shrink-0 border-t border-white/10 p-3">
         <div
-          className={cn("mb-2 flex items-center gap-3", collapsed ? "justify-center" : "px-2 py-1")}
+          className={cn(
+            "mb-2 flex items-center gap-3 rounded-lg",
+            collapsed ? "justify-center py-1" : "bg-white/5 px-2.5 py-2",
+          )}
           title={collapsed ? `${name} · ${ROLE_LABELS[role]}` : undefined}
         >
-          <span className="flex size-8 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-slate-600 to-slate-800 text-xs font-semibold text-white ring-1 ring-white/10">
+          <span className="flex size-9 shrink-0 items-center justify-center rounded-full bg-white/10 font-serif text-[0.8rem] font-semibold text-white ring-1 ring-white/25">
             {initials}
           </span>
           {!collapsed && (
@@ -228,13 +286,17 @@ function SidebarBody({
 
 function sidebarButton(collapsed: boolean) {
   return cn(
-    "h-8 w-full text-[13px] font-normal text-sidebar-foreground shadow-none hover:bg-sidebar-accent hover:text-white focus-visible:ring-2 focus-visible:ring-sky-400/50",
+    "h-9 w-full text-[13px] font-normal text-sidebar-foreground shadow-none hover:bg-white/10 hover:text-white focus-visible:ring-2 focus-visible:ring-navy-muted/60",
     collapsed ? "justify-center px-0" : "justify-start gap-3 px-3",
   );
 }
 
 const itemBase =
-  "relative flex h-9 items-center gap-3 rounded-md text-[13.5px] font-medium transition-colors duration-150 focus-visible:ring-2 focus-visible:ring-sky-400/50 focus-visible:outline-none";
+  "relative flex h-10 items-center gap-3 rounded-lg text-[13.5px] font-medium transition-colors duration-150 focus-visible:ring-2 focus-visible:ring-navy-muted/60 focus-visible:outline-none";
+
+/* Active row: a light pill plus a celeste marker on the left edge. */
+const activeMarker =
+  "before:absolute before:inset-y-2 before:left-0 before:w-[3px] before:rounded-full before:bg-navy-muted";
 
 function SidebarItem({
   item,
@@ -254,7 +316,7 @@ function SidebarItem({
 
   const content = (
     <>
-      <Icon className="size-4 shrink-0" aria-hidden />
+      <Icon className="size-[18px] shrink-0" aria-hidden />
       {collapsed ? <span className="sr-only">{item.label}</span> : <span className="truncate">{item.label}</span>}
     </>
   );
@@ -264,8 +326,8 @@ function SidebarItem({
       itemBase,
       collapsed ? "justify-center px-0" : "px-3",
       active
-        ? "bg-sidebar-accent text-white shadow-[inset_0_0_0_1px_rgb(255_255_255/0.04)]"
-        : "text-sidebar-foreground hover:bg-sidebar-accent/60 hover:text-white",
+        ? cn("bg-white/12 text-white", activeMarker)
+        : "text-sidebar-foreground/90 hover:bg-white/6 hover:text-white",
     );
 
   if (collapsed) {
@@ -301,7 +363,7 @@ function SidebarItem({
         </div>
       )}
       {item.children && item.children.length > 0 && (
-        <ul className="mt-0.5 mb-1 ml-5 flex flex-col gap-0.5 border-l border-sidebar-border pl-3">
+        <ul className="mt-0.5 mb-1 ml-5 flex flex-col gap-0.5 border-l border-white/15 pl-3">
           {item.children.map((child) => {
             const active = matches(pathname, child.href);
             return (
@@ -311,10 +373,10 @@ function SidebarItem({
                   onClick={onNavigate}
                   aria-current={active ? "page" : undefined}
                   className={cn(
-                    "flex h-8 items-center rounded-md px-2.5 text-[13px] transition-colors duration-150 focus-visible:ring-2 focus-visible:ring-sky-400/50 focus-visible:outline-none",
+                    "relative flex h-8 items-center rounded-md px-2.5 text-[13px] transition-colors duration-150 focus-visible:ring-2 focus-visible:ring-navy-muted/60 focus-visible:outline-none",
                     active
-                      ? "bg-sidebar-accent font-medium text-white"
-                      : "text-sidebar-muted hover:bg-sidebar-accent/60 hover:text-white",
+                      ? cn("bg-white/12 font-medium text-white", activeMarker)
+                      : "text-sidebar-foreground/85 hover:bg-white/6 hover:text-white",
                   )}
                 >
                   <span className="truncate">{child.label}</span>

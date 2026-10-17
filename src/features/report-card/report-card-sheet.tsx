@@ -1,6 +1,6 @@
 import type { ReactNode } from "react";
 import { CheckCheck, Clock } from "lucide-react";
-import { CrestTile } from "@/components/brand/logo";
+import { LogoCrest } from "@/components/brand/logo";
 import { gradingTypeLabel, type Course } from "@/domain/course";
 import type { GradeValue } from "@/domain/grading";
 import {
@@ -31,18 +31,24 @@ interface ReportCardSheetProps {
   hiddenText?: string;
   /** Explains why a bimester is hidden. */
   hiddenDescription?: string;
-  renderBimesterActions?: (bimester: SheetBimester) => ReactNode;
   renderBimesterBadge?: (bimester: SheetBimester) => ReactNode;
+  /** Families do not see the grading scale name. */
+  showGradingType?: boolean;
 }
 
 function Hidden({ text }: { text: string }) {
-  return <span className="text-xs font-normal text-slate-400">{text}</span>;
+  return (
+    <span className="text-xs font-normal text-muted-foreground">
+      <span aria-hidden className="sm:hidden">—</span>
+      <span className="sr-only sm:not-sr-only">{text}</span>
+    </span>
+  );
 }
 
 function Field({ label, children }: { label: string; children: ReactNode }) {
   return (
     <div className="min-w-0">
-      <dt className="text-[11px] font-medium tracking-[0.04em] text-slate-500 uppercase">{label}</dt>
+      <dt className="text-[11px] font-medium tracking-[0.04em] text-muted-foreground uppercase">{label}</dt>
       <dd className="mt-1 truncate text-sm font-medium text-foreground">{children}</dd>
     </div>
   );
@@ -50,7 +56,7 @@ function Field({ label, children }: { label: string; children: ReactNode }) {
 
 function SectionTitle({ children }: { children: ReactNode }) {
   return (
-    <h2 className="mb-3 text-[11px] font-semibold tracking-[0.08em] text-slate-500 uppercase">
+    <h2 className="mb-3 text-[11px] font-semibold tracking-[0.08em] text-navy/80 uppercase">
       {children}
     </h2>
   );
@@ -69,9 +75,9 @@ export function ReportCardSheet({
   cuatrimestralExam,
   closing,
   hiddenText = "Pendiente",
-  hiddenDescription = "Las calificaciones de este bimestre estarán disponibles cuando el docente las publique.",
-  renderBimesterActions,
+  hiddenDescription = "Las calificaciones de este bimestre estarán disponibles cuando el instituto las publique.",
   renderBimesterBadge,
+  showGradingType = true,
 }: ReportCardSheetProps) {
   const rows: { label: string; render: (b: Bimester) => ReactNode }[] = [
     { label: "Nota de aplicación", render: (b) => <GradeText value={b.applicationGrade} /> },
@@ -82,9 +88,9 @@ export function ReportCardSheet({
   return (
     <article className="print-sheet surface-card overflow-hidden">
       {/* Letterhead */}
-      <header className="relative flex flex-col gap-4 border-b border-slate-200 px-5 py-6 sm:flex-row sm:items-center sm:justify-between sm:px-8">
+      <header className="relative flex flex-col gap-4 border-b border-border px-5 py-6 sm:flex-row sm:items-center sm:justify-between sm:px-8">
         <div className="flex items-center gap-3.5">
-          <CrestTile className="size-12" />
+          <LogoCrest decorative className="h-14 shrink-0" />
           <div className="leading-tight">
             <p className="font-semibold tracking-[-0.01em] text-foreground">
               Instituto Inmaculada Concepción
@@ -93,7 +99,7 @@ export function ReportCardSheet({
           </div>
         </div>
         <div className="sm:text-right">
-          <p className="font-semibold tracking-[-0.01em] text-foreground">Boletín de calificaciones</p>
+          <p className="font-serif text-lg font-semibold text-navy">Boletín de calificaciones</p>
           <p className="text-sm text-muted-foreground tabular-nums">Ciclo lectivo {year}</p>
         </div>
         <span
@@ -104,24 +110,26 @@ export function ReportCardSheet({
 
       <div className="px-5 py-6 sm:px-8 sm:py-8">
         {/* Student data */}
-        <dl className="grid grid-cols-2 gap-x-6 gap-y-5 rounded-lg bg-slate-50/80 p-4 ring-1 ring-slate-200/70 ring-inset lg:grid-cols-4">
+        <dl className="grid grid-cols-2 gap-x-6 gap-y-5 rounded-lg bg-primary-tint p-4 ring-1 ring-primary/10 ring-inset lg:grid-cols-4">
           <Field label="Alumno/a">{fullName(student)}</Field>
           <Field label="Curso">{course.name}</Field>
           <Field label="Docente">{teacherNames.join(", ") || "—"}</Field>
-          <Field label="Calificación">{gradingTypeLabel(course.gradingType)}</Field>
+          {showGradingType && (
+            <Field label="Calificación">{gradingTypeLabel(course.gradingType)}</Field>
+          )}
         </dl>
 
         {/* Grades table */}
         <section className="mt-8">
           <SectionTitle>Calificaciones</SectionTitle>
-          <div className="overflow-x-auto rounded-lg border border-slate-200">
-            <table className="w-full min-w-[520px] border-collapse text-sm">
+          <div className="relative overflow-x-auto rounded-lg border border-border">
+            <table className="w-full border-collapse text-sm sm:min-w-[520px]">
               <caption className="sr-only">Calificaciones por bimestre</caption>
-              <thead className="bg-slate-50/80">
-                <tr className="border-b border-slate-200">
+              <thead className="bg-primary-tint">
+                <tr className="border-b border-border">
                   <th
                     scope="col"
-                    className="h-9 px-4 text-left text-[11px] font-medium tracking-[0.04em] text-slate-500 uppercase"
+                    className="h-9 bg-primary-tint px-3 text-left text-[11px] font-medium tracking-[0.04em] text-navy/75 uppercase sm:px-4"
                   >
                     Concepto
                   </th>
@@ -129,23 +137,27 @@ export function ReportCardSheet({
                     <th
                       key={b.number}
                       scope="col"
-                      className="h-9 px-4 text-center text-[11px] font-medium tracking-[0.04em] text-slate-500 uppercase"
+                      className="h-9 px-1 text-center text-[11px] font-medium tracking-[0.04em] text-navy/75 uppercase sm:px-4"
                     >
-                      {bimesterLabel(b.number)}
+                      <span aria-hidden className="sm:hidden">{b.number}° B.</span>
+                      <span className="sr-only sm:not-sr-only">{bimesterLabel(b.number)}</span>
                     </th>
                   ))}
                 </tr>
               </thead>
               <tbody>
                 {rows.map((row) => (
-                  <tr key={row.label} className="border-b border-slate-100 last:border-b-0">
-                    <th scope="row" className="px-4 py-3 text-left font-medium text-slate-700">
+                  <tr key={row.label} className="border-b border-border last:border-b-0">
+                    <th
+                      scope="row"
+                      className="bg-card px-2.5 py-3 text-left text-[13px] leading-snug font-medium text-foreground/80 sm:px-4 sm:text-sm"
+                    >
                       {row.label}
                     </th>
                     {bimesters.map((b) => (
                       <td
                         key={b.number}
-                        className="px-4 py-3 text-center font-medium text-foreground tabular-nums"
+                        className="px-1 py-3 text-center text-[13px] font-medium break-words text-foreground tabular-nums sm:px-4 sm:text-sm"
                       >
                         {b.visible && b.data ? row.render(b.data) : <Hidden text={hiddenText} />}
                       </td>
@@ -160,7 +172,7 @@ export function ReportCardSheet({
         {/* Observations */}
         <section className="mt-8">
           <SectionTitle>Observaciones</SectionTitle>
-          <div className="divide-y divide-slate-100 rounded-lg border border-slate-200">
+          <div className="divide-y divide-border rounded-lg border border-border">
             {bimesters.map((b) => (
               <div
                 key={b.number}
@@ -173,7 +185,7 @@ export function ReportCardSheet({
                 <div className="flex min-w-0 flex-col gap-3">
                   {b.visible && b.data ? (
                     <>
-                      <p className="text-sm leading-relaxed text-slate-700">
+                      <p className="text-sm leading-relaxed text-foreground/85">
                         {b.data.observation || (
                           <span className="text-muted-foreground">Sin observaciones.</span>
                         )}
@@ -182,9 +194,6 @@ export function ReportCardSheet({
                     </>
                   ) : (
                     <p className="text-sm text-muted-foreground">{hiddenDescription}</p>
-                  )}
-                  {renderBimesterActions && (
-                    <div className="print:hidden">{renderBimesterActions(b)}</div>
                   )}
                 </div>
               </div>
@@ -195,7 +204,7 @@ export function ReportCardSheet({
         {/* Closing */}
         <section className="mt-8">
           <SectionTitle>Cierre del ciclo lectivo</SectionTitle>
-          <div className="grid divide-y divide-slate-100 rounded-lg border border-slate-200 md:grid-cols-3 md:divide-x md:divide-y-0">
+          <div className="grid divide-y divide-border rounded-lg border border-border md:grid-cols-3 md:divide-x md:divide-y-0">
             <div className="p-4 break-inside-avoid">
               <p className="text-sm font-semibold">Examen cuatrimestral</p>
               <p className="text-xs text-muted-foreground">Rendido luego del 2° bimestre</p>

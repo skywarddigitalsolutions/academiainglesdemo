@@ -1,7 +1,7 @@
 "use client";
 
 import type { ReactNode } from "react";
-import { BookOpen, House } from "lucide-react";
+import { ClipboardList } from "lucide-react";
 import { AppShell, type NavItem } from "@/components/layout/app-shell";
 import { useAsyncData } from "@/providers/use-async-data";
 import { useSession } from "@/providers/session-provider";
@@ -15,10 +15,11 @@ export function TeacherShell({ children }: { children: ReactNode }) {
   );
 
   const nav: NavItem[] = [
-    { label: "Inicio", href: "/teacher", icon: House, exact: true },
     {
       label: "Mis cursos",
-      icon: BookOpen,
+      href: "/teacher",
+      icon: ClipboardList,
+      exact: true,
       children: (data ?? []).map(({ course }) => ({
         href: `/teacher/courses/${course.id}`,
         label: course.name,

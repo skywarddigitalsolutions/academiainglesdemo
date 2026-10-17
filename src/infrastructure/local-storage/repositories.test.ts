@@ -55,6 +55,20 @@ describe("local storage repositories", () => {
     expect(await repos.students.getById("s-new")).toBeNull();
   });
 
+  it("saves and deletes courses", async () => {
+    await repos.courses.save({
+      id: "c-new",
+      name: "3° Grado B",
+      gradingType: "conceptual",
+      teacherIds: [],
+      nextCourseName: "",
+      schedule: "Lunes · 10:00 a 11:00",
+    });
+    expect((await repos.courses.getById("c-new"))?.name).toBe("3° Grado B");
+    await repos.courses.delete("c-new");
+    expect(await repos.courses.getById("c-new")).toBeNull();
+  });
+
   it("persists report cards in storage", async () => {
     const student = (await repos.students.list())[0];
     const card = (await repos.reportCards.findByStudent(student.id, 2026))!;
@@ -71,13 +85,24 @@ describe("local storage repositories", () => {
 
   it("namespaces every key and versions the data collections", async () => {
     await repos.students.list();
-    expect(storage.getItem(`${STORAGE_PREFIX}v2:students`)).not.toBeNull();
+    expect(storage.getItem(`${STORAGE_PREFIX}v3:students`)).not.toBeNull();
   });
 
   it("ignores data stored with a previous schema version", async () => {
     storage.setItem(`${STORAGE_PREFIX}students`, "[]");
+    storage.setItem(`${STORAGE_PREFIX}v2:students`, "[]");
     const fresh = createLocalStorageRepositories(storage, 2026);
     expect((await fresh.students.list()).length).toBeGreaterThan(0);
+  });
+
+  it("restores approval batches and notes when the demo is reset", async () => {
+    const [review] = await repos.reviews.listByCourse("c-1y", 2026);
+    await repos.reviews.delete(review.id);
+    await repos.notes.markSeen("u-teacher-1", "c-5a", "2026-10-15T00:00:00.000Z");
+    await repos.demoData.reset();
+    expect(await repos.reviews.getById(review.id)).not.toBeNull();
+    expect(await repos.notes.getSeenAt("u-teacher-1", "c-5a")).toBeNull();
+    expect((await repos.notes.listByCourse("c-5a", 2026)).length).toBe(1);
   });
 
   it("restores the seed when the demo is reset", async () => {

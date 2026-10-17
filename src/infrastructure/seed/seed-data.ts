@@ -1,9 +1,13 @@
 import { DEMO_PASSWORD } from "@/application/demo-constants";
 import type { Course } from "@/domain/course";
+import { createCourseNote, type CourseNote } from "@/domain/course-note";
+import { returnReview, submitReview, type PeriodReview } from "@/domain/period-review";
 import type { ConceptualGrade, GradeValue, GradingType } from "@/domain/grading";
 import {
   acknowledgeBimester,
   createEmptyReportCard,
+  getBimester,
+  isBimesterComplete,
   publishBimester,
   updateBimester,
   updateClosing,
@@ -18,6 +22,8 @@ export interface SeedData {
   courses: Course[];
   students: Student[];
   reportCards: ReportCard[];
+  reviews: PeriodReview[];
+  notes: CourseNote[];
 }
 
 export { DEMO_PASSWORD };
@@ -238,10 +244,63 @@ export function buildSeed(year: number): SeedData {
     });
   }
 
+  const { reviews, notes } = buildReviews(year, reportCards);
   return {
     users: USERS.map((u) => ({ ...u })),
     courses: COURSES.map((c) => ({ ...c, teacherIds: [...c.teacherIds] })),
     students,
     reportCards,
+    reviews,
+    notes,
   };
+}
+
+const RETURN_NOTE =
+  "Revise la nota de aplicación de Bruno Acosta y complete las observaciones antes de volver a enviar.";
+
+/**
+ * Approval states shown by the demo for the 3° bimester:
+ * 1° Año was sent to Dirección (pending), 5° Grado A was returned to the
+ * teacher with a note, and 2° Grado A is still a draft.
+ */
+function buildReviews(year: number, cards: ReportCard[]) {
+  const completeIn = (courseId: string) =>
+    cards
+      .filter((c) => c.courseId === courseId && isBimesterComplete(getBimester(c, 3)))
+      .map((c) => c.studentId);
+
+  const pending = submitReview(null, {
+    courseId: "c-1y",
+    year,
+    period: 3,
+    studentIds: completeIn("c-1y"),
+    teacherId: "u-teacher-2",
+    now: at(year, "10-14", "18:20"),
+  });
+  const returned = returnReview(
+    submitReview(null, {
+      courseId: "c-5a",
+      year,
+      period: 3,
+      studentIds: completeIn("c-5a"),
+      teacherId: "u-teacher-1",
+      now: at(year, "10-10", "17:05"),
+    }),
+    "u-admin",
+    RETURN_NOTE,
+    at(year, "10-13", "09:40"),
+  );
+  const notes = [
+    createCourseNote({
+      id: "note-c-5a-3",
+      courseId: "c-5a",
+      year,
+      authorId: "u-admin",
+      authorName: "María Elena Gutiérrez",
+      text: RETURN_NOTE,
+      period: 3,
+      now: at(year, "10-13", "09:40"),
+    }),
+  ];
+  return { reviews: [pending, returned], notes };
 }

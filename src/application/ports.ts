@@ -1,4 +1,6 @@
 import type { Course } from "@/domain/course";
+import type { CourseNote } from "@/domain/course-note";
+import type { PeriodReview } from "@/domain/period-review";
 import type { ReportCard } from "@/domain/report-card";
 import type { Student } from "@/domain/student";
 import type { Role, Session, User } from "@/domain/user";
@@ -22,6 +24,8 @@ export interface CourseRepository {
   list(): Promise<Course[]>;
   getById(id: string): Promise<Course | null>;
   listByTeacher(teacherId: string): Promise<Course[]>;
+  save(course: Course): Promise<void>;
+  delete(id: string): Promise<void>;
 }
 
 export interface UserRepository {
@@ -38,6 +42,23 @@ export interface ReportCardRepository {
   findByStudent(studentId: string, year: number): Promise<ReportCard | null>;
   save(card: ReportCard): Promise<void>;
   deleteByStudent(studentId: string): Promise<void>;
+}
+
+/** Approval batches of a course period (see domain/period-review). */
+export interface PeriodReviewRepository {
+  listByCourse(courseId: string, year: number): Promise<PeriodReview[]>;
+  getById(id: string): Promise<PeriodReview | null>;
+  save(review: PeriodReview): Promise<void>;
+  delete(id: string): Promise<void>;
+}
+
+/** Notes from Dirección to the teachers of a course, and when each teacher read them. */
+export interface CourseNoteRepository {
+  /** Newest first. */
+  listByCourse(courseId: string, year: number): Promise<CourseNote[]>;
+  save(note: CourseNote): Promise<void>;
+  getSeenAt(teacherId: string, courseId: string): Promise<string | null>;
+  markSeen(teacherId: string, courseId: string, at: string): Promise<void>;
 }
 
 export interface SessionStore {
@@ -64,6 +85,8 @@ export interface Repositories {
   courses: CourseRepository;
   users: UserRepository;
   reportCards: ReportCardRepository;
+  reviews: PeriodReviewRepository;
+  notes: CourseNoteRepository;
   session: SessionStore;
   demoData: DemoDataManager;
 }
