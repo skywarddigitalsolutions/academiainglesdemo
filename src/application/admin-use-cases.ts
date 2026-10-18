@@ -17,6 +17,7 @@ import {
 } from "@/domain/student";
 import { displayName, type User } from "@/domain/user";
 import { DEMO_PASSWORD } from "./demo-constants";
+import { loadExamAgenda, loadExamDetail, requireExam, type ExamAgenda, type ExamDetail } from "./exams";
 import {
   findReview,
   loadGradeSheet,
@@ -98,7 +99,7 @@ export interface ParentListItem {
 }
 
 export function createAdminUseCases(deps: UseCaseDeps) {
-  const { courses, students, users, reportCards, reviews, notes } = deps.repositories;
+  const { courses, students, users, reportCards, reviews, notes, exams } = deps.repositories;
 
   async function requirePendingReview(courseId: string, period: ReportPeriod) {
     const review = await findReview(deps, courseId, period);
@@ -270,6 +271,16 @@ export function createAdminUseCases(deps: UseCaseDeps) {
       return saveGradeSheetChanges(deps, course, period, changes);
     },
 
+    /** Read-only: exams are managed by the teachers. */
+    async listExams(): Promise<ExamAgenda> {
+      return loadExamAgenda(deps, await courses.list());
+    },
+
+    async getExam(examId: string): Promise<ExamDetail> {
+      const exam = await requireExam(deps, examId);
+      return loadExamDetail(deps, exam, await requireCourse(deps, exam.courseId));
+    },
+
     async listCourses(): Promise<CourseOverview[]> {
       return (await this.getOverview()).courses;
     },
@@ -317,6 +328,9 @@ export function createAdminUseCases(deps: UseCaseDeps) {
       }
       for (const review of await reviews.listByCourse(courseId, deps.year)) {
         await reviews.delete(review.id);
+      }
+      for (const exam of await exams.listByCourse(courseId, deps.year)) {
+        await exams.delete(exam.id);
       }
       await courses.delete(courseId);
     },

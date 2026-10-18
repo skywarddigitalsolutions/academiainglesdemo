@@ -138,7 +138,7 @@ function CourseGrades({
     <CourseGradeSheet
       sheet={sheet}
       onSheetChange={onSheetChange}
-      eyebrow="Notas"
+      eyebrow="Nota bimestral"
       breadcrumbs={[{ label: "Notas", href: "/admin/grades" }, { label: course.name }]}
       description={
         <>

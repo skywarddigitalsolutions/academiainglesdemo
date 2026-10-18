@@ -625,6 +625,163 @@ describe("parent", () => {
   });
 });
 
+describe("teacher exams", () => {
+  const details = {
+    date: "2026-10-27",
+    type: "oral" as const,
+    topic: "  Hobbies  ",
+    bimester: 4 as const,
+  };
+
+  it("lists the exams of the teacher's courses with their status", async () => {
+    const agenda = await uc.teacher.listExams(TEACHER);
+    expect(agenda.today).toBe("2026-10-15");
+    expect(agenda.courses.map((c) => c.id).sort()).toEqual(["c-2a", "c-5a"]);
+    expect(new Set(agenda.items.map((i) => i.course.id))).toEqual(new Set(["c-2a", "c-5a"]));
+    const statuses = agenda.items.map((i) => i.status);
+    expect(statuses).toContain("upcoming");
+    expect(statuses).toContain("pending-grades");
+    expect(statuses).toContain("published");
+    const fifthFirst = agenda.items.find((i) => i.exam.id === "ex-c-5a-1")!;
+    expect(fifthFirst.stats).toMatchObject({ total: 8, graded: 8 });
+  });
+
+  it("creates, edits and deletes an exam of an assigned course", async () => {
+    const exam = await uc.teacher.createExam(TEACHER, { courseId: "c-5a", ...details });
+    expect(exam).toMatchObject({ courseId: "c-5a", year: 2026, topic: "Hobbies", publishedAt: null });
+    const edited = await uc.teacher.updateExam(TEACHER, exam.id, {
+      ...details,
+      date: "2026-10-28",
+      type: "written",
+    });
+    expect(edited).toMatchObject({ date: "2026-10-28", type: "written", courseId: "c-5a" });
+    await uc.teacher.deleteExam(TEACHER, exam.id);
+    await expect(uc.teacher.getExam(TEACHER, exam.id)).rejects.toThrow(DomainError);
+  });
+
+  it("forbids exams of courses of other teachers", async () => {
+    await expect(
+      uc.teacher.createExam(OTHER_TEACHER, { courseId: "c-5a", ...details }),
+    ).rejects.toThrow(DomainError);
+    await expect(uc.teacher.getExam(OTHER_TEACHER, "ex-c-5a-1")).rejects.toThrow(DomainError);
+    await expect(uc.teacher.deleteExam(OTHER_TEACHER, "ex-c-5a-1")).rejects.toThrow(DomainError);
+    await expect(
+      uc.teacher.saveExamGrades(OTHER_TEACHER, "ex-c-5a-4", { "s-08": 7 }),
+    ).rejects.toThrow(DomainError);
+    await expect(uc.teacher.publishExamGrades(OTHER_TEACHER, "ex-c-5a-4")).rejects.toThrow(
+      DomainError,
+    );
+  });
+
+  it("loads the exam with the course students and stats", async () => {
+    const detail = await uc.teacher.getExam(TEACHER, "ex-c-5a-4");
+    expect(detail.students).toHaveLength(8);
+    expect(detail.status).toBe("pending-grades");
+    expect(detail.stats.graded).toBe(4);
+  });
+
+  it("saves grades and publishes them without Dirección", async () => {
+    const saved = await uc.teacher.saveExamGrades(OTHER_TEACHER, "ex-c-1y-4", {});
+    expect(saved.stats.graded).toBe(0);
+    await expect(uc.teacher.publishExamGrades(TEACHER, "ex-c-5a-6")).rejects.toThrow(DomainError);
+
+    const graded = await uc.teacher.saveExamGrades(TEACHER, "ex-c-5a-4", {
+      "s-09": 8.5,
+      "s-08": null,
+    });
+    expect(graded.exam.grades["s-09"]).toBe(8.5);
+    expect(graded.exam.grades["s-08"]).toBeUndefined();
+    const published = await uc.teacher.publishExamGrades(TEACHER, "ex-c-5a-4");
+    expect(published.status).toBe("published");
+    expect(published.exam.publishedAt).toBe(NOW.toISOString());
+
+    const corrected = await uc.teacher.saveExamGrades(TEACHER, "ex-c-5a-4", { "s-09": 9 });
+    expect(corrected.status).toBe("published");
+    expect(corrected.exam.grades["s-09"]).toBe(9);
+  });
+
+  it("rejects invalid grades, students of other courses and grades before the exam day", async () => {
+    await expect(uc.teacher.saveExamGrades(TEACHER, "ex-c-5a-4", { "s-09": 12 })).rejects.toThrow(
+      DomainError,
+    );
+    await expect(uc.teacher.saveExamGrades(TEACHER, "ex-c-5a-4", { "s-01": 7 })).rejects.toThrow(
+      DomainError,
+    );
+    await expect(uc.teacher.saveExamGrades(TEACHER, "ex-c-5a-6", { "s-09": 7 })).rejects.toThrow(
+      DomainError,
+    );
+  });
+
+  it("lists the exams of one course for the bimester reference", async () => {
+    const exams = await uc.teacher.listCourseExams(TEACHER, "c-5a");
+    expect(exams.every((e) => e.courseId === "c-5a")).toBe(true);
+    await expect(uc.teacher.listCourseExams(OTHER_TEACHER, "c-5a")).rejects.toThrow(DomainError);
+  });
+});
+
+describe("admin exams", () => {
+  it("lists the exams of every course and opens any of them", async () => {
+    const agenda = await uc.admin.listExams();
+    expect(agenda.courses).toHaveLength(3);
+    expect(new Set(agenda.items.map((i) => i.course.id)).size).toBe(3);
+    const detail = await uc.admin.getExam("ex-c-1y-1");
+    expect(detail.course.id).toBe("c-1y");
+    expect(detail.students).toHaveLength(6);
+  });
+
+  it("removes the exams of a deleted course", async () => {
+    const course = await uc.admin.saveCourse({
+      name: "4° Grado B",
+      schedule: "Lunes · 10:00 a 11:00",
+      gradingType: "numeric",
+      teacherIds: [TEACHER],
+      nextCourseName: "",
+    });
+    const exam = await uc.teacher.createExam(TEACHER, {
+      courseId: course.id,
+      date: "2026-10-27",
+      type: "written",
+      topic: "Unit 1",
+      bimester: 4,
+    });
+    await uc.admin.deleteCourse(course.id);
+    await expect(uc.admin.getExam(exam.id)).rejects.toThrow(DomainError);
+  });
+});
+
+describe("parent exams", () => {
+  it("lists the upcoming exams of their children only", async () => {
+    const items = await uc.parent.listUpcomingExams(PARENT);
+    expect(items.length).toBeGreaterThan(0);
+    expect(new Set(items.map((i) => i.student.id))).toEqual(new Set(["s-01", "s-08"]));
+    const dates = items.map((i) => i.exam.date);
+    expect(dates).toEqual([...dates].sort());
+    expect(dates.every((d) => d >= "2026-10-15")).toBe(true);
+    expect(items[0].exam).not.toHaveProperty("grades");
+  });
+
+  it("sees only published grades of their own child", async () => {
+    const { upcoming, graded } = await uc.parent.getChildExams(PARENT, "s-08");
+    expect(upcoming.length).toBeGreaterThan(0);
+    expect(graded.map((g) => g.exam.id)).toEqual(["ex-c-5a-3", "ex-c-5a-2", "ex-c-5a-1"]);
+    expect(graded.every((g) => g.grade !== null)).toBe(true);
+    expect(graded[0].exam).not.toHaveProperty("grades");
+
+    await uc.teacher.publishExamGrades(TEACHER, "ex-c-5a-4");
+    const after = await uc.parent.getChildExams(PARENT, "s-08");
+    expect(after.graded[0].exam.id).toBe("ex-c-5a-4");
+    expect(after.graded[0].grade).not.toBeNull();
+    // Martina has no grade in that exam: it is listed without one.
+    const martina = await uc.parent.getChildExams("u-parent-4", "s-09");
+    expect(martina.graded[0]).toMatchObject({ grade: null });
+    expect(martina.graded[0].exam.id).toBe("ex-c-5a-4");
+  });
+
+  it("cannot see exams of other students", async () => {
+    await expect(uc.parent.getChildExams(PARENT, "s-02")).rejects.toThrow(DomainError);
+  });
+});
+
 describe("demo", () => {
   it("restores the seed data", async () => {
     await uc.admin.deleteStudent("s-01");

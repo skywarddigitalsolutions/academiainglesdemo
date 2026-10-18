@@ -105,6 +105,27 @@ describe("local storage repositories", () => {
     expect((await repos.notes.listByCourse("c-5a", 2026)).length).toBe(1);
   });
 
+  it("lists exams by course and year, sorted by date", async () => {
+    const exams = await repos.exams.listByCourse("c-5a", 2026);
+    expect(exams.length).toBeGreaterThan(0);
+    expect(exams.every((e) => e.courseId === "c-5a")).toBe(true);
+    const dates = exams.map((e) => e.date);
+    expect(dates).toEqual([...dates].sort());
+    expect(await repos.exams.listByCourse("c-5a", 1999)).toEqual([]);
+    const all = await repos.exams.listByYear(2026);
+    expect(new Set(all.map((e) => e.courseId))).toEqual(new Set(["c-2a", "c-5a", "c-1y"]));
+  });
+
+  it("saves, finds and deletes exams, and restores them on reset", async () => {
+    const [first] = await repos.exams.listByCourse("c-1y", 2026);
+    await repos.exams.save({ ...first, topic: "Changed" });
+    expect((await repos.exams.getById(first.id))?.topic).toBe("Changed");
+    await repos.exams.delete(first.id);
+    expect(await repos.exams.getById(first.id)).toBeNull();
+    await repos.demoData.reset();
+    expect((await repos.exams.getById(first.id))?.topic).toBe(first.topic);
+  });
+
   it("restores the seed when the demo is reset", async () => {
     const student = (await repos.students.list())[0];
     await repos.students.delete(student.id);

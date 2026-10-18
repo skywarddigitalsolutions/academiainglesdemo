@@ -1,6 +1,6 @@
 "use client";
 
-import { useParams } from "next/navigation";
+import { useParams, useSearchParams } from "next/navigation";
 import { useState } from "react";
 import { Loader2, Send, Undo2 } from "lucide-react";
 import { toast } from "sonner";
@@ -20,6 +20,8 @@ import {
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { gradingTypeLabel } from "@/domain/course";
+import { examAverageForBimester } from "@/domain/exam";
+import { formatGrade } from "@/domain/grading";
 import { isLockedForTeacher } from "@/domain/period-review";
 import type { ReportPeriod } from "@/domain/report-card";
 import { fullName } from "@/domain/student";
@@ -27,9 +29,10 @@ import { CourseGradeSheet } from "@/features/grade-sheet/course-grade-sheet";
 import { CourseNotesPanel } from "@/features/grade-sheet/course-notes";
 import { Schedule } from "@/features/grade-sheet/course-picker";
 import { ReviewBanner } from "@/features/grade-sheet/review-banner";
+import { defaultSheetPeriod } from "@/features/grade-sheet/sheet-model";
 import { publishCandidates } from "@/features/grade-sheet/sheet-summary";
 import type { SheetRowView } from "@/features/grade-sheet/use-sheet-drafts";
-import { periodLabel } from "@/features/report-card/period";
+import { parsePeriodParam, periodLabel } from "@/features/report-card/period";
 import { errorMessage } from "@/lib/error-message";
 import { getServices } from "@/providers/services";
 import { useAsyncData } from "@/providers/use-async-data";
@@ -88,6 +91,13 @@ function TeacherGradeSheet({
   const notes = useAsyncData(`teacher-notes:${teacherId}:${course.id}`, (s) =>
     s.teacher.listCourseNotes(teacherId, course.id),
   );
+  // Exam average of the selected bimester: a read-only reference next to each name.
+  const exams = useAsyncData(`teacher-course-exams:${teacherId}:${course.id}`, (s) =>
+    s.teacher.listCourseExams(teacherId, course.id),
+  );
+  const searchParams = useSearchParams();
+  const period =
+    parsePeriodParam(searchParams.get("periodo")) ?? defaultSheetPeriod(rows.map((r) => r.card));
 
   async function handleSubmit(period: ReportPeriod) {
     setBusy(true);
@@ -125,7 +135,7 @@ function TeacherGradeSheet({
     <CourseGradeSheet
       sheet={sheet}
       onSheetChange={onSheetChange}
-      eyebrow="Notas"
+      eyebrow="Nota bimestral"
       breadcrumbs={[{ label: "Mis cursos", href: "/teacher" }, { label: course.name }]}
       description={
         <>
@@ -166,6 +176,25 @@ function TeacherGradeSheet({
             <Send aria-hidden />
             Enviar a Dirección
           </Button>
+        );
+      }}
+      renderName={(row, name) => {
+        const average =
+          period === "closing" || !exams.data
+            ? null
+            : examAverageForBimester(exams.data, row.student.id, period);
+        return average === null ? (
+          name
+        ) : (
+          <>
+            {name}
+            <span
+              className="block text-[11.5px] font-normal text-muted-foreground tabular-nums"
+              title="Promedio de los exámenes del bimestre (solo referencia)"
+            >
+              Prom. exámenes {formatGrade(average)}
+            </span>
+          </>
         );
       }}
       aside={

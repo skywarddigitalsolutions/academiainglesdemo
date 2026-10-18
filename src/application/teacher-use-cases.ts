@@ -2,6 +2,13 @@ import type { Course } from "@/domain/course";
 import { unreadNoteCount, type CourseNote } from "@/domain/course-note";
 import { DomainError } from "@/domain/errors";
 import {
+  createExam,
+  updateExamDetails,
+  type Exam,
+  type ExamDetails,
+  type ExamGradeChanges,
+} from "@/domain/exam";
+import {
   isLockedForTeacher,
   submitReview,
   withdrawReview,
@@ -16,6 +23,15 @@ import {
   type ReportCard,
   type ReportPeriod,
 } from "@/domain/report-card";
+import {
+  loadExamAgenda,
+  loadExamDetail,
+  publishExamGrades,
+  requireExam,
+  saveExamGradeChanges,
+  type ExamAgenda,
+  type ExamDetail,
+} from "./exams";
 import {
   findReview,
   isPeriodPublished,
@@ -43,6 +59,10 @@ export interface TeacherCourseSummary {
   unreadNotes: number;
 }
 
+export interface ExamInput extends ExamDetails {
+  courseId: string;
+}
+
 export interface SubmitResult {
   /** Students sent to Dirección in this batch. */
   submitted: string[];
@@ -65,7 +85,7 @@ function publishedError(): DomainError {
 }
 
 export function createTeacherUseCases(deps: UseCaseDeps) {
-  const { courses, reportCards, reviews, notes } = deps.repositories;
+  const { courses, reportCards, reviews, notes, exams } = deps.repositories;
 
   async function requireAssignedCourse(teacherId: string, courseId: string) {
     const course = await requireCourse(deps, courseId);
@@ -80,6 +100,12 @@ export function createTeacherUseCases(deps: UseCaseDeps) {
     const data = await loadStudentReportCard(deps, studentId);
     if (!data.course.teacherIds.includes(teacherId)) throw forbidden();
     return data;
+  }
+
+  async function requireAssignedExam(teacherId: string, examId: string) {
+    const exam = await requireExam(deps, examId);
+    const course = await requireAssignedCourse(teacherId, exam.courseId);
+    return { exam, course };
   }
 
   /** Single-student edits follow the same rules as the sheet. */
@@ -192,6 +218,64 @@ export function createTeacherUseCases(deps: UseCaseDeps) {
 
     getReportCard(teacherId: string, studentId: string) {
       return requireAssignedStudent(teacherId, studentId);
+    },
+
+    /** Exams of every assigned course, with their status as of today. */
+    async listExams(teacherId: string): Promise<ExamAgenda> {
+      return loadExamAgenda(deps, await courses.listByTeacher(teacherId));
+    },
+
+    /** Exams of one course (e.g. the exam average shown as a reference). */
+    async listCourseExams(teacherId: string, courseId: string): Promise<Exam[]> {
+      await requireAssignedCourse(teacherId, courseId);
+      return exams.listByCourse(courseId, deps.year);
+    },
+
+    async getExam(teacherId: string, examId: string): Promise<ExamDetail> {
+      const { exam, course } = await requireAssignedExam(teacherId, examId);
+      return loadExamDetail(deps, exam, course);
+    },
+
+    async createExam(teacherId: string, input: ExamInput): Promise<Exam> {
+      const { courseId, ...details } = input;
+      await requireAssignedCourse(teacherId, courseId);
+      const exam = createExam({
+        id: deps.ids.next("exam"),
+        courseId,
+        year: deps.year,
+        details,
+        now: deps.clock.now(),
+      });
+      await exams.save(exam);
+      return exam;
+    },
+
+    async updateExam(teacherId: string, examId: string, details: ExamDetails): Promise<Exam> {
+      const { exam } = await requireAssignedExam(teacherId, examId);
+      const updated = updateExamDetails(exam, details, deps.clock.now());
+      await exams.save(updated);
+      return updated;
+    },
+
+    async deleteExam(teacherId: string, examId: string): Promise<void> {
+      await requireAssignedExam(teacherId, examId);
+      await exams.delete(examId);
+    },
+
+    /** Grades stay private until published; corrections after publishing stay published. */
+    async saveExamGrades(
+      teacherId: string,
+      examId: string,
+      changes: ExamGradeChanges,
+    ): Promise<ExamDetail> {
+      const { exam, course } = await requireAssignedExam(teacherId, examId);
+      return saveExamGradeChanges(deps, exam, course, changes);
+    },
+
+    /** Families see the grades right away: exams need no approval by Dirección. */
+    async publishExamGrades(teacherId: string, examId: string): Promise<ExamDetail> {
+      const { exam, course } = await requireAssignedExam(teacherId, examId);
+      return publishExamGrades(deps, exam, course);
     },
 
     saveBimester(

@@ -1,6 +1,8 @@
 import { describe, expect, it } from "vitest";
+import { examStatus, upcomingWithin } from "@/domain/exam";
+import { isValidGrade } from "@/domain/grading";
 import { getBimester, getBimesterStatus } from "@/domain/report-card";
-import { buildSeed } from "./seed-data";
+import { buildSeed, seedReferenceDay } from "./seed-data";
 
 const seed = buildSeed(2026);
 
@@ -89,6 +91,61 @@ describe("demo seed", () => {
 
   it("is deterministic", () => {
     expect(buildSeed(2026)).toEqual(seed);
+  });
+});
+
+describe("demo seed exams", () => {
+  // Reference day of the demo storyline (see the approval dates above).
+  const today = seedReferenceDay(2026);
+  const courseStudents = (courseId: string) =>
+    seed.students.filter((s) => s.courseId === courseId).map((s) => s.id);
+
+  it("has valid exams for every course across bimesters 1 to 3 and upcoming ones", () => {
+    for (const course of seed.courses) {
+      const exams = seed.exams.filter((e) => e.courseId === course.id);
+      expect(new Set(exams.filter((e) => e.date < today).map((e) => e.bimester))).toEqual(
+        new Set([1, 2, 3]),
+      );
+      const soon = upcomingWithin(exams, today, 14);
+      expect(soon.length).toBeGreaterThanOrEqual(1);
+      for (const exam of exams) {
+        expect(exam.year).toBe(2026);
+        expect(exam.topic.trim()).not.toBe("");
+        for (const [studentId, value] of Object.entries(exam.grades)) {
+          expect(courseStudents(course.id)).toContain(studentId);
+          expect(isValidGrade(course.gradingType, value)).toBe(true);
+        }
+      }
+    }
+    expect(upcomingWithin(seed.exams, today, 14).length).toBeGreaterThanOrEqual(2);
+    expect(new Set(seed.exams.map((e) => e.id)).size).toBe(seed.exams.length);
+  });
+
+  it("publishes graded past exams, keeps upcoming ones ungraded and leaves some pending", () => {
+    const statuses = seed.exams.map((e) => examStatus(e, today));
+    expect(statuses).toContain("published");
+    expect(statuses).toContain("upcoming");
+    expect(statuses).toContain("pending-grades");
+    for (const exam of seed.exams) {
+      if (exam.date > today) {
+        expect(exam.grades).toEqual({});
+        expect(exam.publishedAt).toBeNull();
+      }
+      if (exam.publishedAt) {
+        expect(Object.keys(exam.grades)).toHaveLength(courseStudents(exam.courseId).length);
+      }
+    }
+    const ungradedPast = seed.exams.filter(
+      (e) => e.date < today && Object.keys(e.grades).length === 0,
+    );
+    expect(ungradedPast.length).toBeGreaterThanOrEqual(1);
+  });
+
+  it("grades students consistently with their level", () => {
+    const published = seed.exams.filter((e) => e.courseId === "c-5a" && e.publishedAt);
+    const avg = (id: string) =>
+      published.reduce((sum, e) => sum + (e.grades[id] as number), 0) / published.length;
+    expect(avg("s-13")).toBeGreaterThan(avg("s-10")); // Julieta (9.5) vs Bruno (5)
   });
 });
 

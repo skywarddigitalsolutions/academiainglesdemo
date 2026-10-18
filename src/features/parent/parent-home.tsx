@@ -13,6 +13,7 @@ import { cn } from "@/lib/utils";
 import { useAsyncData } from "@/providers/use-async-data";
 import { useSession } from "@/providers/session-provider";
 import { latestPublishedPeriod, parentPeriodSteps, unreadPeriods } from "./parent-model";
+import { ParentUpcomingExams } from "./parent-exams";
 import { ParentPeriodStrip } from "./parent-period-strip";
 
 /** Container: loads the children of the logged-in parent. */
@@ -46,6 +47,7 @@ export function ParentHome() {
       {loading && <LoadingState variant="cards" />}
       {error && <ErrorState message={error} />}
       {data && <ChildrenList items={data} />}
+      {data && data.length > 0 && <ParentUpcomingExams />}
     </>
   );
 }

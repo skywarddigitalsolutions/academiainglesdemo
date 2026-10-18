@@ -27,6 +27,21 @@ export function formatDate(iso: string | null): string {
   return dateFormat.format(new Date(iso));
 }
 
+const WEEKDAYS = ["dom", "lun", "mar", "mié", "jue", "vie", "sáb"] as const;
+
+/** Calendar day "yyyy-mm-dd" as "dd/mm/yyyy" (no time zone involved). */
+export function formatDay(day: string): string {
+  const [y, m, d] = day.split("-");
+  return `${d}/${m}/${y}`;
+}
+
+/** Calendar day "yyyy-mm-dd" as "mar 20/10". */
+export function formatDayShort(day: string): string {
+  const [y, m, d] = day.split("-").map(Number);
+  const weekday = WEEKDAYS[new Date(Date.UTC(y, m - 1, d)).getUTCDay()];
+  return `${weekday} ${String(d).padStart(2, "0")}/${String(m).padStart(2, "0")}`;
+}
+
 export function bimesterLabel(n: number): string {
   return `${n}° Bimestre`;
 }

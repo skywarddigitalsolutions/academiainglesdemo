@@ -30,6 +30,7 @@ import {
   unreadPeriods,
   type ParentBimesterRow,
 } from "./parent-model";
+import { ChildExamsSection } from "./parent-exams";
 
 /** Container: loads the family view of a report card and handles "Leído". */
 export function ParentReportCardContainer() {
@@ -142,6 +143,10 @@ function ParentReportCardView({
         ) : (
           <PendingLine label={periodLabel("closing")} period={periodParam("closing")} />
         )}
+
+        <div className="mt-6">
+          <ChildExamsSection studentId={student.id} />
+        </div>
       </div>
 
       {/* Full report card, A4: only when printing. */}

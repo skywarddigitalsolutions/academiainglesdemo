@@ -1,7 +1,7 @@
 "use client";
 
 import type { ReactNode } from "react";
-import { ClipboardList } from "lucide-react";
+import { CalendarDays, ClipboardList } from "lucide-react";
 import { AppShell, type NavItem } from "@/components/layout/app-shell";
 import { useAsyncData } from "@/providers/use-async-data";
 import { useSession } from "@/providers/session-provider";
@@ -25,6 +25,7 @@ export function TeacherShell({ children }: { children: ReactNode }) {
         label: course.name,
       })),
     },
+    { label: "Exámenes", href: "/teacher/exams", icon: CalendarDays },
   ];
 
   return (

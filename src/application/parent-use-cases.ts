@@ -1,4 +1,5 @@
 import type { Course } from "@/domain/course";
+import { sortPastFirst, splitAgenda, upcomingWithin } from "@/domain/exam";
 import {
   acknowledgeBimester,
   getBimesterStatus,
@@ -7,6 +8,7 @@ import {
   type ParentReportCardView,
 } from "@/domain/report-card";
 import type { Student } from "@/domain/student";
+import { today, toParentExamView, type ParentExamGrade, type ParentExamView } from "./exams";
 import {
   forbidden,
   loadOrCreateReportCard,
@@ -32,8 +34,24 @@ export interface ParentReportCard {
   view: ParentReportCardView;
 }
 
+export interface ParentUpcomingExam {
+  student: Student;
+  course: Course;
+  exam: ParentExamView;
+}
+
+export interface ChildExams {
+  /** From today on, ascending (not yet published). */
+  upcoming: ParentExamView[];
+  /** Published exams, newest first, with the child's grade (null when not graded). */
+  graded: ParentExamGrade[];
+}
+
+/** Days ahead shown in "Próximos exámenes". */
+export const PARENT_UPCOMING_EXAM_DAYS = 21;
+
 export function createParentUseCases(deps: UseCaseDeps) {
-  const { students, users, reportCards } = deps.repositories;
+  const { students, users, reportCards, exams } = deps.repositories;
 
   async function requireChild(parentId: string, studentId: string) {
     const data = await loadStudentReportCard(deps, studentId);
@@ -75,6 +93,42 @@ export function createParentUseCases(deps: UseCaseDeps) {
           };
         }),
       );
+    },
+
+    /** Dates are always shown; grades never come with this list. */
+    async listUpcomingExams(parentId: string): Promise<ParentUpcomingExam[]> {
+      const children = await students.listByGuardian(parentId);
+      const day = today(deps);
+      const perChild = await Promise.all(
+        children.map(async (student) => {
+          const course = await requireCourse(deps, student.courseId);
+          const list = await exams.listByCourse(course.id, deps.year);
+          return upcomingWithin(list, day, PARENT_UPCOMING_EXAM_DAYS).map((exam) => ({
+            student,
+            course,
+            exam: toParentExamView(exam),
+          }));
+        }),
+      );
+      return perChild
+        .flat()
+        .sort(
+          (a, b) => a.exam.date.localeCompare(b.exam.date) || a.exam.id.localeCompare(b.exam.id),
+        );
+    },
+
+    /** Upcoming exams of a child and the grades already published. */
+    async getChildExams(parentId: string, studentId: string): Promise<ChildExams> {
+      const { student } = await requireChild(parentId, studentId);
+      const list = await exams.listByCourse(student.courseId, deps.year);
+      const { upcoming } = splitAgenda(list, today(deps));
+      return {
+        upcoming: upcoming.filter((e) => e.publishedAt === null).map(toParentExamView),
+        graded: sortPastFirst(list.filter((e) => e.publishedAt !== null)).map((exam) => ({
+          exam: toParentExamView(exam),
+          grade: exam.grades[student.id] ?? null,
+        })),
+      };
     },
 
     async getReportCard(parentId: string, studentId: string) {

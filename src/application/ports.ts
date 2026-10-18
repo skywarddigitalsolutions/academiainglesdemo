@@ -1,5 +1,6 @@
 import type { Course } from "@/domain/course";
 import type { CourseNote } from "@/domain/course-note";
+import type { Exam } from "@/domain/exam";
 import type { PeriodReview } from "@/domain/period-review";
 import type { ReportCard } from "@/domain/report-card";
 import type { Student } from "@/domain/student";
@@ -61,6 +62,17 @@ export interface CourseNoteRepository {
   markSeen(teacherId: string, courseId: string, at: string): Promise<void>;
 }
 
+/** Exams of the courses (see domain/exam). */
+export interface ExamRepository {
+  /** Sorted by date, oldest first. */
+  listByCourse(courseId: string, year: number): Promise<Exam[]>;
+  /** Every course, sorted by date, oldest first. */
+  listByYear(year: number): Promise<Exam[]>;
+  getById(id: string): Promise<Exam | null>;
+  save(exam: Exam): Promise<void>;
+  delete(id: string): Promise<void>;
+}
+
 export interface SessionStore {
   get(): Promise<Session | null>;
   set(session: Session): Promise<void>;
@@ -87,6 +99,7 @@ export interface Repositories {
   reportCards: ReportCardRepository;
   reviews: PeriodReviewRepository;
   notes: CourseNoteRepository;
+  exams: ExamRepository;
   session: SessionStore;
   demoData: DemoDataManager;
 }

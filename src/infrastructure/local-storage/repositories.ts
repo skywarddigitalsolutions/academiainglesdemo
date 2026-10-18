@@ -2,6 +2,7 @@ import type {
   CourseNoteRepository,
   CourseRepository,
   DemoDataManager,
+  ExamRepository,
   PeriodReviewRepository,
   ReportCardRepository,
   Repositories,
@@ -11,6 +12,7 @@ import type {
 } from "@/application/ports";
 import type { Course } from "@/domain/course";
 import type { CourseNote } from "@/domain/course-note";
+import type { Exam } from "@/domain/exam";
 import type { PeriodReview } from "@/domain/period-review";
 import type { ReportCard } from "@/domain/report-card";
 import type { Student } from "@/domain/student";
@@ -33,6 +35,7 @@ const KEYS = {
   reviews: `${STORAGE_PREFIX}${DATA_VERSION}period-reviews`,
   notes: `${STORAGE_PREFIX}${DATA_VERSION}course-notes`,
   noteReads: `${STORAGE_PREFIX}${DATA_VERSION}course-note-reads`,
+  exams: `${STORAGE_PREFIX}${DATA_VERSION}exams`,
   session: `${STORAGE_PREFIX}session`,
 } as const;
 
@@ -172,6 +175,28 @@ class LocalStorageCourseNoteRepository implements CourseNoteRepository {
   }
 }
 
+const byDate = (a: Exam, b: Exam) => a.date.localeCompare(b.date) || a.id.localeCompare(b.id);
+
+class LocalStorageExamRepository implements ExamRepository {
+  constructor(private readonly items: LocalStorageCollection<Exam>) {}
+
+  async listByCourse(courseId: string, year: number) {
+    return this.items.filter((e) => e.courseId === courseId && e.year === year).sort(byDate);
+  }
+  async listByYear(year: number) {
+    return this.items.filter((e) => e.year === year).sort(byDate);
+  }
+  async getById(id: string) {
+    return this.items.find((e) => e.id === id);
+  }
+  async save(exam: Exam) {
+    this.items.upsert(exam);
+  }
+  async delete(id: string) {
+    this.items.remove(id);
+  }
+}
+
 class LocalStorageSessionStore implements SessionStore {
   private memory: Session | null = null;
 
@@ -227,10 +252,20 @@ export function createLocalStorageRepositories(
   const reviews = new LocalStorageCollection(storage, KEYS.reviews, () => seed().reviews);
   const notes = new LocalStorageCollection(storage, KEYS.notes, () => seed().notes);
   const noteReads = new LocalStorageCollection<NoteRead>(storage, KEYS.noteReads, () => []);
+  const exams = new LocalStorageCollection(storage, KEYS.exams, () => seed().exams);
 
   const demoData: DemoDataManager = {
     async reset() {
-      for (const collection of [users, courses, students, reportCards, reviews, notes, noteReads]) {
+      for (const collection of [
+        users,
+        courses,
+        students,
+        reportCards,
+        reviews,
+        notes,
+        noteReads,
+        exams,
+      ]) {
         collection.reset();
       }
     },
@@ -243,6 +278,7 @@ export function createLocalStorageRepositories(
     reportCards: new LocalStorageReportCardRepository(reportCards),
     reviews: new LocalStoragePeriodReviewRepository(reviews),
     notes: new LocalStorageCourseNoteRepository(notes, noteReads),
+    exams: new LocalStorageExamRepository(exams),
     session: new LocalStorageSessionStore(storage),
     demoData,
   };

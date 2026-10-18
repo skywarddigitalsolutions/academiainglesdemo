@@ -1,6 +1,7 @@
 import { DEMO_PASSWORD } from "@/application/demo-constants";
 import type { Course } from "@/domain/course";
 import { createCourseNote, type CourseNote } from "@/domain/course-note";
+import { addDays, type Exam, type ExamType } from "@/domain/exam";
 import { returnReview, submitReview, type PeriodReview } from "@/domain/period-review";
 import type { ConceptualGrade, GradeValue, GradingType } from "@/domain/grading";
 import {
@@ -24,6 +25,7 @@ export interface SeedData {
   reportCards: ReportCard[];
   reviews: PeriodReview[];
   notes: CourseNote[];
+  exams: Exam[];
 }
 
 export { DEMO_PASSWORD };
@@ -246,6 +248,7 @@ export function buildSeed(year: number): SeedData {
 
   const { reviews, notes } = buildReviews(year, reportCards);
   return {
+    exams: buildExams(year),
     users: USERS.map((u) => ({ ...u })),
     courses: COURSES.map((c) => ({ ...c, teacherIds: [...c.teacherIds] })),
     students,
@@ -303,4 +306,82 @@ function buildReviews(year: number, cards: ReportCard[]) {
     }),
   ];
   return { reviews: [pending, returned], notes };
+}
+
+/**
+ * Day the demo storyline is set on: bimester 3 under review, the next exams
+ * within the following two weeks. The seed is deterministic, so its dates do
+ * not move with the real calendar.
+ */
+export function seedReferenceDay(year: number): string {
+  return `${year}-10-16`;
+}
+
+type ExamState = "published" | "partial" | "ungraded" | "upcoming";
+type ExamRow = [monthDay: string, bimester: BimesterNumber, type: ExamType, topic: string, state: ExamState];
+
+const EXAM_ROWS: Record<string, ExamRow[]> = {
+  "c-2a": [
+    ["04-15", 1, "oral", "Colors and numbers", "published"],
+    ["06-10", 2, "written", "My family", "published"],
+    ["09-02", 3, "practical", "Animals poster", "published"],
+    ["10-08", 3, "oral", "Daily routines", "ungraded"],
+    ["10-21", 4, "written", "Food and drinks", "upcoming"],
+  ],
+  "c-5a": [
+    ["04-09", 1, "written", "Present simple", "published"],
+    ["06-18", 2, "presentation", "My favourite place", "published"],
+    ["08-27", 3, "written", "Past simple: regular verbs", "published"],
+    ["10-06", 3, "practical", "Reading comprehension", "partial"],
+    ["10-22", 4, "oral", "Describing people", "upcoming"],
+    ["10-29", 4, "written", "Past continuous", "upcoming"],
+  ],
+  "c-1y": [
+    ["04-17", 1, "written", "Verb to be and have got", "published"],
+    ["06-26", 2, "oral", "Interview with a classmate", "published"],
+    ["09-11", 3, "written", "Comparatives and superlatives", "published"],
+    ["10-09", 3, "written", "Unit 5 vocabulary", "ungraded"],
+    ["10-23", 4, "practical", "Short story", "upcoming"],
+  ],
+};
+
+const EXAM_VARIATION = [0, 0.5, -0.5, 1, -1] as const;
+
+function examGrade(type: GradingType, value: number): GradeValue {
+  if (type === "conceptual") return toConceptual(value);
+  return Math.min(10, Math.max(1, Math.round(value * 2) / 2));
+}
+
+function buildExams(year: number): Exam[] {
+  const exams: Exam[] = [];
+  for (const course of COURSES) {
+    const rows = STUDENT_ROWS[course.id];
+    EXAM_ROWS[course.id].forEach(([monthDay, bimester, type, topic, state], examIndex) => {
+      const date = `${year}-${monthDay}`;
+      const grades: Exam["grades"] = {};
+      if (state === "published" || state === "partial") {
+        rows.forEach(([id, , , , level], i) => {
+          if (state === "partial" && i % 2 === 1) return;
+          const variation = EXAM_VARIATION[(i + examIndex) % EXAM_VARIATION.length];
+          grades[id] = examGrade(course.gradingType, level + variation);
+        });
+      }
+      const created = at(year, addDays(date, -12).slice(5), "19:00").toISOString();
+      const graded = at(year, addDays(date, 6).slice(5), "18:30").toISOString();
+      exams.push({
+        id: `ex-${course.id}-${examIndex + 1}`,
+        courseId: course.id,
+        year,
+        bimester,
+        date,
+        type,
+        topic,
+        grades,
+        publishedAt: state === "published" ? graded : null,
+        createdAt: created,
+        updatedAt: state === "published" || state === "partial" ? graded : created,
+      });
+    });
+  }
+  return exams;
 }
