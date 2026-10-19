@@ -3,6 +3,7 @@
 import type { ReactNode } from "react";
 import { Users } from "lucide-react";
 import { AppShell, type NavItem } from "@/components/layout/app-shell";
+import { NotificationsBell } from "./notifications-bell";
 import { useAsyncData } from "@/providers/use-async-data";
 import { useSession } from "@/providers/session-provider";
 
@@ -28,7 +29,7 @@ export function ParentShell({ children }: { children: ReactNode }) {
   ];
 
   return (
-    <AppShell role="parent" nav={nav}>
+    <AppShell role="parent" nav={nav} headerAction={<NotificationsBell />}>
       {children}
     </AppShell>
   );

@@ -1042,6 +1042,24 @@ describe("parent exams", () => {
     expect(new Set(ids).size).toBe(ids.length);
   });
 
+  it("notifies only what was published for their own children", async () => {
+    const { today, items: list } = await uc.parent.listNotifications(PARENT);
+    expect(today).toBe("2026-10-15");
+    expect(list.length).toBeGreaterThan(0);
+    expect(new Set(list.map((n) => n.studentId))).toEqual(new Set(["s-01", "s-08"]));
+    expect(list.some((n) => n.kind === "report-card")).toBe(true);
+    expect(list.some((n) => n.kind === "exam-grade")).toBe(true);
+    expect(list.map((n) => n.id)).not.toContain("exam:s-08:ex-c-5a-4");
+    await uc.teacher.publishExamGrades(TEACHER, "ex-c-5a-4");
+    const after = (await uc.parent.listNotifications(PARENT)).items;
+    expect(after[0].id).toBe("exam:s-08:ex-c-5a-4");
+    const other = (await uc.parent.listNotifications(PARENT_1Y)).items;
+    const ownIds = (await uc.parent.listChildren(PARENT_1Y)).map((c) => c.student.id);
+    expect(other.length).toBeGreaterThan(0);
+    expect(other.every((n) => ownIds.includes(n.studentId))).toBe(true);
+    expect(other.every((n) => n.studentId !== "s-01" && n.studentId !== "s-08")).toBe(true);
+  });
+
   it("cannot see exams of other students", async () => {
     await expect(uc.parent.getChildExams(PARENT, "s-02")).rejects.toThrow(DomainError);
   });

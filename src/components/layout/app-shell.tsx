@@ -75,10 +75,13 @@ function useCollapsed(): [boolean, () => void] {
 export function AppShell({
   role,
   nav,
+  headerAction,
   children,
 }: {
   role: Role;
   nav: NavItem[];
+  /** Top-bar control on the right (e.g. the family notifications bell). */
+  headerAction?: ReactNode;
   children: ReactNode;
 }) {
   const [collapsed, toggleCollapsed] = useCollapsed();
@@ -153,7 +156,13 @@ export function AppShell({
                 Inmaculada Concepción
               </span>
             </Link>
+            {headerAction && <div className="ml-auto shrink-0">{headerAction}</div>}
           </header>
+          {headerAction && (
+            <div className="sticky top-0 z-30 hidden h-14 items-center justify-end border-b border-border bg-card/90 px-6 backdrop-blur-md md:flex lg:px-10 print:hidden">
+              {headerAction}
+            </div>
+          )}
           <main className="mx-auto w-full max-w-7xl min-w-0 flex-1 px-4 pt-6 pb-16 md:pt-10 sm:px-6 lg:px-10 print:max-w-none print:p-0">
             {children}
           </main>

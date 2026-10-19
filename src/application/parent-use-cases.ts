@@ -15,6 +15,7 @@ import {
   type ParentReportCardView,
 } from "@/domain/report-card";
 import type { Student } from "@/domain/student";
+import { buildParentNotifications, type ParentNotification } from "./notifications";
 import { today, toParentExamView, type ParentExamGrade, type ParentExamView } from "./exams";
 import {
   forbidden,
@@ -63,6 +64,12 @@ export interface ParentExamCalendar {
   /** Courses of the children, in the order of the legend. */
   courses: Course[];
   items: ParentCalendarItem[];
+}
+
+/** Notices for the bell, with the calendar day they are measured against. */
+export interface ParentNotifications {
+  today: string;
+  items: ParentNotification[];
 }
 
 export interface ChildExams {
@@ -183,6 +190,19 @@ export function createParentUseCases(deps: UseCaseDeps) {
           grade: exam.grades[student.id] ?? null,
         })),
       };
+    },
+
+    /** Published boletines and exam grades of the parent's children, newest first. */
+    async listNotifications(parentId: string): Promise<ParentNotifications> {
+      const children = await students.listByGuardian(parentId);
+      const sources = await Promise.all(
+        children.map(async (student) => ({
+          student,
+          card: await loadOrCreateReportCard(deps, student),
+          exams: await exams.listByCourse(student.courseId, deps.year),
+        })),
+      );
+      return { today: today(deps), items: buildParentNotifications(sources) };
     },
 
     async getReportCard(parentId: string, studentId: string) {
