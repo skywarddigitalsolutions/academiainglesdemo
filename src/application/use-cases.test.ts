@@ -795,6 +795,45 @@ describe("admin dashboard", () => {
     );
   });
 
+  it("shows conceptual courses as counts and a median concept, never rates or numbers", async () => {
+    const dashboard = await uc.admin.getDashboard();
+    const conceptual = dashboard.courses.filter((c) => c.course.gradingType === "conceptual");
+    expect(conceptual.length).toBeGreaterThan(0);
+    for (const course of conceptual) {
+      expect(course.passRate).toBeNull();
+      expect(course.failRate).toBeNull();
+      expect(course.concept).not.toBeNull();
+      expect(course.students.every((s) => s.performance.gradingType === "conceptual")).toBe(true);
+      for (const b of course.bimesterAverages) {
+        expect(b.concept === null).toBe(b.average === null);
+      }
+    }
+    const numeric = dashboard.courses.find((c) => c.course.gradingType === "numeric")!;
+    expect(numeric.passRate).not.toBeNull();
+    expect(numeric.concept).toBeNull();
+    expect(numeric.bimesterAverages.every((b) => b.concept === null)).toBe(true);
+  });
+
+  it("computes the school average and the bimester chart over numeric courses only", async () => {
+    const dashboard = await uc.admin.getDashboard();
+    const numeric = dashboard.courses
+      .filter((c) => c.course.gradingType === "numeric")
+      .flatMap((c) => c.students);
+    const averages = numeric
+      .map((s) => s.performance.average)
+      .filter((a): a is number => a !== null);
+    const mean = Math.round((averages.reduce((a, b) => a + b, 0) / averages.length) * 100) / 100;
+    expect(dashboard.school.average).toBe(mean);
+    expect(dashboard.school).not.toHaveProperty("passRate");
+    expect(dashboard.school).not.toHaveProperty("failRate");
+    const first = numeric
+      .map((s) => s.performance.scores[0])
+      .filter((x): x is number => x !== null);
+    const firstMean = Math.round((first.reduce((a, b) => a + b, 0) / first.length) * 100) / 100;
+    expect(dashboard.bimesterAverages[0].average).toBe(firstMean);
+    expect(dashboard.bimesterAverages[0].concept).toBeNull();
+  });
+
   it("lists students at risk with their reasons", async () => {
     const dashboard = await uc.admin.getDashboard();
     const course = dashboard.courses.find((c) => c.course.id === "c-5a")!;

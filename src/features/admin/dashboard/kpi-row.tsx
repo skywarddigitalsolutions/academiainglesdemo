@@ -9,7 +9,7 @@ import {
 } from "lucide-react";
 import type { SchoolMetrics } from "@/application/dashboard";
 import { cn } from "@/lib/utils";
-import { countLabel, formatPercent } from "./dashboard-model";
+import { countLabel } from "./dashboard-model";
 
 type KpiTone = "neutral" | "success" | "warning" | "danger";
 
@@ -37,25 +37,25 @@ function kpis(school: SchoolMetrics): Kpi[] {
       id: "average",
       icon: GraduationCap,
       tone: "neutral",
-      label: "Promedio general",
+      label: "Promedio general (5° grado en adelante)",
       value: school.average === null ? "—" : String(school.average).replace(".", ","),
-      helper: "Sobre 10, de todos los alumnos con notas",
+      helper: "Sobre 10. No incluye los cursos con notas conceptuales",
     },
     {
       id: "passed",
       icon: CheckCircle2,
       tone: "success",
       label: "Aprobados",
-      value: formatPercent(school.passRate),
-      helper: `${school.passed} de ${countLabel(school.passed + school.failed, "alumno", "alumnos")} con notas`,
+      value: String(school.passed),
+      helper: `de ${countLabel(school.passed + school.failed, "alumno", "alumnos")} con notas`,
     },
     {
       id: "failed",
       icon: XCircle,
       tone: school.failed > 0 ? "danger" : "success",
       label: "Desaprobados",
-      value: formatPercent(school.failRate),
-      helper: `${countLabel(school.failed, "alumno", "alumnos")} con promedio menor a 6`,
+      value: String(school.failed),
+      helper: `de ${countLabel(school.passed + school.failed, "alumno", "alumnos")} con notas`,
     },
     {
       id: "risk",

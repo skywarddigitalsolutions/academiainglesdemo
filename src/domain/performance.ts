@@ -1,4 +1,10 @@
-import { PASS_MARK, type ConceptualGrade, type GradeValue } from "./grading";
+import {
+  CONCEPTUAL_SCALE,
+  PASS_MARK,
+  type ConceptualGrade,
+  type GradeValue,
+  type GradingType,
+} from "./grading";
 import { BIMESTER_NUMBERS, type BimesterNumber, type ReportCard } from "./report-card";
 
 /*
@@ -22,6 +28,10 @@ export const CONCEPTUAL_SCORE: Record<ConceptualGrade, number> = {
 export const SHARP_DROP_PCT = 10;
 const LOW_AVERAGE = 7;
 const FLAT_BAND_PCT = 1;
+const FAILING_CONCEPT: ConceptualGrade = "Desaprobado";
+const LOW_CONCEPT: ConceptualGrade = "Regular";
+/** Dropping this many scale steps (or more) down to "Regular" is a medium March risk. */
+const SHARP_LEVEL_DROP = 2;
 
 export type Trend = "up" | "down" | "flat";
 export type Standing = "passed" | "failed" | "ungraded";
@@ -39,14 +49,20 @@ export interface MarchRisk {
 }
 
 export interface StudentPerformance {
-  /** Score per bimester 1-4 (null = not graded yet). */
+  gradingType: GradingType;
+  /** Score per bimester 1-4 (null = not graded yet). Conceptual grades use their internal score. */
   scores: (number | null)[];
+  /** Numeric: mean of the scores. Conceptual: the internal score of `concept`. */
   average: number | null;
+  /** Conceptual only: the median concept of the graded bimesters. */
+  concept: ConceptualGrade | null;
   gradedBimesters: number;
   latest: GradedBimester | null;
   previous: GradedBimester | null;
-  /** Latest vs previous graded bimester, percentage with one decimal. */
+  /** Numeric only: latest vs previous graded bimester, percentage with one decimal. */
   changePct: number | null;
+  /** Conceptual only: scale steps gained (+) or lost (-) between the previous and the latest bimester. */
+  levelChange: number | null;
   trend: Trend | null;
   standing: Standing;
   risk: MarchRisk;
@@ -72,6 +88,29 @@ export function averageOf(values: number[]): number | null {
   return round(values.reduce((sum, v) => sum + v, 0) / values.length, 2);
 }
 
+/** The concept whose internal score is closest to `score`. */
+export function nearestConcept(score: number): ConceptualGrade {
+  return CONCEPTUAL_SCALE.reduce((best, grade) =>
+    Math.abs(CONCEPTUAL_SCORE[grade] - score) < Math.abs(CONCEPTUAL_SCORE[best] - score)
+      ? grade
+      : best,
+  );
+}
+
+/** Median concept; with an even count it takes the lower (worse) middle one. */
+export function medianConcept(grades: ConceptualGrade[]): ConceptualGrade | null {
+  if (grades.length === 0) return null;
+  const sorted = [...grades].sort(
+    (a, b) => CONCEPTUAL_SCALE.indexOf(a) - CONCEPTUAL_SCALE.indexOf(b),
+  );
+  return sorted[Math.floor(sorted.length / 2)];
+}
+
+/** Scale steps from one concept to another: positive when improving. */
+export function levelsBetween(from: ConceptualGrade, to: ConceptualGrade): number {
+  return CONCEPTUAL_SCALE.indexOf(from) - CONCEPTUAL_SCALE.indexOf(to);
+}
+
 export function percentChange(
   previous: number | null,
   latest: number | null,
@@ -80,7 +119,16 @@ export function percentChange(
   return round(((latest - previous) / previous) * 100, 1);
 }
 
-function evaluateRisk(params: {
+function isFinalExam(card: ReportCard): boolean {
+  return card.closing.finalResult?.kind === "march" || card.closing.result === "Va a examen final";
+}
+
+function finish(high: string[], medium: string[]): MarchRisk {
+  const level: RiskLevel = high.length > 0 ? "high" : medium.length > 0 ? "medium" : "none";
+  return { level, reasons: [...high, ...medium] };
+}
+
+function evaluateNumericRisk(params: {
   card: ReportCard;
   average: number | null;
   latest: GradedBimester | null;
@@ -91,7 +139,7 @@ function evaluateRisk(params: {
   const high: string[] = [];
   const medium: string[] = [];
 
-  if (card.closing.finalResult?.kind === "march" || card.closing.result === "Va a examen final") {
+  if (isFinalExam(card)) {
     high.push("Figura para rendir examen final");
   }
   if (average !== null && average < PASS_MARK) {
@@ -113,11 +161,52 @@ function evaluateRisk(params: {
     medium.push(`Bajó ${formatDecimal(Math.abs(changePct))}% respecto del bimestre anterior`);
   }
 
-  const level: RiskLevel = high.length > 0 ? "high" : medium.length > 0 ? "medium" : "none";
-  return { level, reasons: [...high, ...medium] };
+  return finish(high, medium);
 }
 
-export function studentPerformance(card: ReportCard): StudentPerformance {
+/** Conceptual courses only fail with "Desaprobado"; "Regular" matters when it is a steep drop. */
+function evaluateConceptualRisk(params: {
+  card: ReportCard;
+  concept: ConceptualGrade | null;
+  latest: ConceptualGrade | null;
+  previous: ConceptualGrade | null;
+}): MarchRisk {
+  const { card, concept, latest, previous } = params;
+  const high: string[] = [];
+  const medium: string[] = [];
+
+  if (isFinalExam(card)) {
+    high.push("Figura para rendir examen final");
+  }
+  if (latest === FAILING_CONCEPT && previous === FAILING_CONCEPT) {
+    high.push("Desaprobó los dos últimos bimestres");
+  }
+  if (concept === FAILING_CONCEPT) {
+    high.push(`Su concepto general es ${FAILING_CONCEPT}`);
+  }
+
+  if (latest === FAILING_CONCEPT) {
+    medium.push("Desaprobó el último bimestre");
+  }
+  if (latest === LOW_CONCEPT && previous) {
+    const dropped = -levelsBetween(previous, latest);
+    if (dropped >= SHARP_LEVEL_DROP) {
+      medium.push(`Bajó de ${previous} a ${latest} (${dropped} niveles)`);
+    }
+  }
+
+  return finish(high, medium);
+}
+
+function trendOf(change: number | null, flatBand: number): Trend | null {
+  if (change === null) return null;
+  return change >= flatBand ? "up" : change <= -flatBand ? "down" : "flat";
+}
+
+export function studentPerformance(
+  card: ReportCard,
+  gradingType: GradingType = "numeric",
+): StudentPerformance {
   const bimesters = BIMESTER_NUMBERS.map(
     (n) => card.bimesters.find((b) => b.number === n) ?? null,
   );
@@ -126,32 +215,45 @@ export function studentPerformance(card: ReportCard): StudentPerformance {
   scores.forEach((score, i) => {
     if (score !== null) graded.push({ bimester: BIMESTER_NUMBERS[i], score });
   });
-
-  const average = averageOf(graded.map((g) => g.score));
   const latest = graded.at(-1) ?? null;
   const previous = graded.at(-2) ?? null;
-  const changePct = percentChange(previous?.score ?? null, latest?.score ?? null);
-  const trend: Trend | null =
-    changePct === null
-      ? null
-      : changePct >= FLAT_BAND_PCT
-        ? "up"
-        : changePct <= -FLAT_BAND_PCT
-          ? "down"
-          : "flat";
-  const standing: Standing =
-    average === null ? "ungraded" : average >= PASS_MARK ? "passed" : "failed";
+  const base = { gradingType, scores, gradedBimesters: graded.length, latest, previous };
 
+  if (gradingType === "conceptual") {
+    const concepts = graded.map((g) => nearestConcept(g.score));
+    const concept = medianConcept(concepts);
+    const latestConcept = concepts.at(-1) ?? null;
+    const previousConcept = concepts.at(-2) ?? null;
+    const levelChange =
+      latestConcept && previousConcept ? levelsBetween(previousConcept, latestConcept) : null;
+    return {
+      ...base,
+      average: concept ? CONCEPTUAL_SCORE[concept] : null,
+      concept,
+      changePct: null,
+      levelChange,
+      trend: trendOf(levelChange, 1),
+      standing: concept === null ? "ungraded" : concept === FAILING_CONCEPT ? "failed" : "passed",
+      risk: evaluateConceptualRisk({
+        card,
+        concept,
+        latest: latestConcept,
+        previous: previousConcept,
+      }),
+    };
+  }
+
+  const average = averageOf(graded.map((g) => g.score));
+  const changePct = percentChange(previous?.score ?? null, latest?.score ?? null);
   return {
-    scores,
+    ...base,
     average,
-    gradedBimesters: graded.length,
-    latest,
-    previous,
+    concept: null,
     changePct,
-    trend,
-    standing,
-    risk: evaluateRisk({ card, average, latest, previous, changePct }),
+    levelChange: null,
+    trend: trendOf(changePct, FLAT_BAND_PCT),
+    standing: average === null ? "ungraded" : average >= PASS_MARK ? "passed" : "failed",
+    risk: evaluateNumericRisk({ card, average, latest, previous, changePct }),
   };
 }
 

@@ -12,8 +12,11 @@ function Legend({ className, children }: { className: string; children: string }
 
 function PassFailRow({ metrics }: { metrics: CourseMetrics }) {
   const seg = passFailSegments(metrics);
-  const passed = `${countLabel(metrics.passed, "aprobado", "aprobados")} (${formatPercent(seg.passed)})`;
-  const failed = `${countLabel(metrics.failed, "desaprobado", "desaprobados")} (${formatPercent(seg.failed)})`;
+  // Conceptual courses show counts only, never percentages.
+  const withShare = (text: string, share: number) =>
+    metrics.course.gradingType === "numeric" ? `${text} (${formatPercent(share)})` : text;
+  const passed = withShare(countLabel(metrics.passed, "aprobado", "aprobados"), seg.passed);
+  const failed = withShare(countLabel(metrics.failed, "desaprobado", "desaprobados"), seg.failed);
   const ungraded = `${metrics.ungraded} sin notas`;
   return (
     <li className="py-3 first:pt-0 last:pb-0">

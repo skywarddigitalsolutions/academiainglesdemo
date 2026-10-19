@@ -32,7 +32,7 @@ export function DashboardSections({
         <section className="min-w-0">
           <SectionHeading
             title="Promedio por bimestre"
-            description="Promedio de todas las notas cargadas en cada bimestre."
+            description="Solo cursos con notas numéricas (5° grado en adelante)."
           />
           <div className="surface-card px-5 pb-4 pt-2">
             <BimesterChart averages={metrics.bimesterAverages} />
@@ -41,7 +41,7 @@ export function DashboardSections({
         <section className="min-w-0">
           <SectionHeading
             title="Aprobados y desaprobados por curso"
-            description="Aprueba quien tiene promedio de 6 o más."
+            description="Aprueba quien tiene promedio de 6 o más. En los cursos conceptuales solo desaprueba quien tiene Desaprobado."
           />
           <div className="surface-card px-5 py-4">
             <PassFailByCourse courses={metrics.courses} />

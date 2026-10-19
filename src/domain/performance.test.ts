@@ -5,6 +5,9 @@ import {
   compareRisk,
   CONCEPTUAL_SCORE,
   gradeScore,
+  levelsBetween,
+  medianConcept,
+  nearestConcept,
   percentChange,
   studentPerformance,
 } from "./performance";
@@ -184,5 +187,110 @@ describe("compareRisk", () => {
     const medium = studentPerformance(card([9, 5.5, null, null]));
     const sorted = [medium, high, lowerHigh].sort(compareRisk);
     expect(sorted).toEqual([lowerHigh, high, medium]);
+  });
+});
+
+describe("conceptual helpers", () => {
+  it("finds the concept closest to a score", () => {
+    expect(nearestConcept(8.1)).toBe("Muy bien");
+    expect(nearestConcept(7.7)).toBe("Bien +");
+    expect(nearestConcept(4)).toBe("Desaprobado");
+  });
+
+  it("takes the median concept, the lower middle one on even counts", () => {
+    expect(medianConcept([])).toBeNull();
+    expect(medianConcept(["Bien"])).toBe("Bien");
+    expect(medianConcept(["Excelente", "Bien", "Regular"])).toBe("Bien");
+    expect(medianConcept(["Excelente", "Desaprobado"])).toBe("Desaprobado");
+    expect(medianConcept(["Muy bien", "Bien", "Excelente", "Regular"])).toBe("Bien");
+  });
+
+  it("counts the steps between two concepts, positive when improving", () => {
+    expect(levelsBetween("Bien", "Muy bien")).toBe(2);
+    expect(levelsBetween("Excelente", "Regular")).toBe(-5);
+    expect(levelsBetween("Bien", "Bien")).toBe(0);
+  });
+});
+
+describe("studentPerformance on a conceptual course", () => {
+  const perf = (grades: (GradeValue | null)[], closing = {}) =>
+    studentPerformance(card(grades, { closing }), "conceptual");
+
+  it("summarizes the median concept and the level change", () => {
+    const p = perf(["Bien", "Muy bien", null, null]);
+    expect(p.gradingType).toBe("conceptual");
+    expect(p.concept).toBe("Bien");
+    expect(p.average).toBe(CONCEPTUAL_SCORE["Bien"]);
+    expect(p.levelChange).toBe(2);
+    expect(p.changePct).toBeNull();
+    expect(p.trend).toBe("up");
+    expect(p.standing).toBe("passed");
+    expect(p.risk).toEqual({ level: "none", reasons: [] });
+  });
+
+  it("flags down and flat level changes", () => {
+    expect(perf(["Muy bien", "Bien", null, null]).trend).toBe("down");
+    const same = perf(["Bien", "Bien", null, null]);
+    expect(same.trend).toBe("flat");
+    expect(same.levelChange).toBe(0);
+  });
+
+  it("has no change with a single graded bimester", () => {
+    const p = perf(["Bien", null, null, null]);
+    expect(p.levelChange).toBeNull();
+    expect(p.trend).toBeNull();
+  });
+
+  it("is ungraded without grades", () => {
+    const p = perf([null, null, null, null]);
+    expect(p.standing).toBe("ungraded");
+    expect(p.concept).toBeNull();
+    expect(p.average).toBeNull();
+  });
+
+  it("fails only when the median concept is Desaprobado", () => {
+    expect(perf(["Regular", "Regular", null, null]).standing).toBe("passed");
+    expect(perf(["Desaprobado", "Excelente", null, null]).standing).toBe("failed");
+    expect(perf(["Desaprobado", "Regular", "Excelente", null]).standing).toBe("passed");
+  });
+
+  describe("risk", () => {
+    it("is high for a final exam result", () => {
+      const p = perf(["Muy bien", "Muy bien", null, null], { result: "Va a examen final" });
+      expect(p.risk.level).toBe("high");
+      expect(p.risk.reasons).toContain("Figura para rendir examen final");
+    });
+
+    it("is high when the last two graded bimesters are Desaprobado", () => {
+      const p = perf(["Excelente", "Desaprobado", "Desaprobado", null]);
+      expect(p.risk.level).toBe("high");
+      expect(p.risk.reasons).toContain("Desaprobó los dos últimos bimestres");
+    });
+
+    it("is high when the median concept is Desaprobado", () => {
+      const p = perf(["Desaprobado", "Excelente", null, null]);
+      expect(p.risk.level).toBe("high");
+      expect(p.risk.reasons).toContain("Su concepto general es Desaprobado");
+    });
+
+    it("is medium when only the latest bimester is Desaprobado", () => {
+      const p = perf(["Muy bien", "Bien", "Desaprobado", null]);
+      expect(p.risk.level).toBe("medium");
+      expect(p.risk.reasons).toEqual(["Desaprobó el último bimestre"]);
+    });
+
+    it("is medium when the latest is Regular after dropping two or more levels", () => {
+      const p = perf(["Muy bien", "Regular", null, null]);
+      expect(p.risk.level).toBe("medium");
+      expect(p.risk.reasons).toEqual(["Bajó de Muy bien a Regular (3 niveles)"]);
+    });
+
+    it("does not flag a Regular that dropped a single level", () => {
+      expect(perf(["Bien", "Regular", null, null]).risk.level).toBe("none");
+    });
+
+    it("does not flag a big drop that ends above Regular", () => {
+      expect(perf(["Excelente", "Bien", null, null]).risk.level).toBe("none");
+    });
   });
 });

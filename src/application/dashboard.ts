@@ -1,9 +1,13 @@
 import type { Course } from "@/domain/course";
 import type { Exam } from "@/domain/exam";
+import type { ConceptualGrade } from "@/domain/grading";
 import {
   averageOf,
+  CONCEPTUAL_SCORE,
   compareRisk,
   gradeScore,
+  medianConcept,
+  nearestConcept,
   studentPerformance,
   type StudentPerformance,
 } from "@/domain/performance";
@@ -16,7 +20,8 @@ import { loadOrCreateReportCard, type UseCaseDeps } from "./shared";
 /*
  * Read model for Dirección's "Tablero". Built from drafts too: Dirección sees
  * work in progress. Aggregates are computed over students, never as an average
- * of course averages.
+ * of course averages. Conceptual courses (1° a 4° grado) never get a numeric
+ * average or a percentage: they expose a median concept and counts.
  */
 
 export interface StudentMetrics {
@@ -26,8 +31,13 @@ export interface StudentMetrics {
 
 export interface BimesterAverage {
   bimester: BimesterNumber;
-  /** Mean of the scores graded in the bimester (null = nobody graded yet). */
+  /**
+   * Numeric: mean of the scores graded in the bimester. Conceptual: the internal
+   * score of `concept` (null = nobody graded yet).
+   */
   average: number | null;
+  /** Conceptual only: median concept of the bimester. */
+  concept: ConceptualGrade | null;
   /** How many students have a grade in the bimester. */
   graded: number;
 }
@@ -36,13 +46,15 @@ export interface CourseMetrics {
   course: Course;
   teachers: User[];
   studentCount: number;
-  /** Mean of the graded students' averages. */
+  /** Numeric: mean of the graded students' averages. Conceptual: the internal score of `concept`. */
   average: number | null;
+  /** Conceptual only: median of the students' concepts. */
+  concept: ConceptualGrade | null;
   bimesterAverages: BimesterAverage[];
   passed: number;
   failed: number;
   ungraded: number;
-  /** Percentages of the graded students, one decimal (null = none graded). */
+  /** Percentages of the graded students, one decimal (null = none graded, always null when conceptual). */
   passRate: number | null;
   failRate: number | null;
   examsTaken: number;
@@ -59,12 +71,11 @@ export interface CourseMetrics {
 
 export interface SchoolMetrics {
   studentCount: number;
+  /** Mean over the students of numeric courses only. */
   average: number | null;
   passed: number;
   failed: number;
   ungraded: number;
-  passRate: number | null;
-  failRate: number | null;
   atRiskHigh: number;
   atRiskMedium: number;
   examsTaken: number;
@@ -76,6 +87,7 @@ export interface DashboardMetrics {
   today: string;
   year: number;
   school: SchoolMetrics;
+  /** Numeric courses only. */
   bimesterAverages: BimesterAverage[];
   /** Same order as the course list. */
   courses: CourseMetrics[];
@@ -85,31 +97,44 @@ function percentOf(count: number, total: number): number | null {
   return total === 0 ? null : Math.round((count / total) * 1000) / 10;
 }
 
-function bimesterAverages(list: StudentMetrics[]): BimesterAverage[] {
+function bimesterAverages(list: StudentMetrics[], isConceptual: boolean): BimesterAverage[] {
   return BIMESTER_NUMBERS.map((bimester, i) => {
     const scores = list
       .map((s) => s.performance.scores[i])
       .filter((score): score is number => score !== null);
-    return { bimester, average: averageOf(scores), graded: scores.length };
+    if (!isConceptual) {
+      return { bimester, average: averageOf(scores), concept: null, graded: scores.length };
+    }
+    const concept = medianConcept(scores.map(nearestConcept));
+    return {
+      bimester,
+      average: concept ? CONCEPTUAL_SCORE[concept] : null,
+      concept,
+      graded: scores.length,
+    };
   });
 }
 
-/** Totals shared by the course and school levels. */
-function summarize(list: StudentMetrics[]) {
+/** Student counts shared by the course and school levels. */
+function countStudents(list: StudentMetrics[]) {
   const performances = list.map((s) => s.performance);
   const passed = performances.filter((p) => p.standing === "passed").length;
   const failed = performances.filter((p) => p.standing === "failed").length;
-  return {
-    studentCount: list.length,
-    average: averageOf(
-      performances.map((p) => p.average).filter((a): a is number => a !== null),
-    ),
-    passed,
-    failed,
-    ungraded: list.length - passed - failed,
-    passRate: percentOf(passed, passed + failed),
-    failRate: percentOf(failed, passed + failed),
-  };
+  return { studentCount: list.length, passed, failed, ungraded: list.length - passed - failed };
+}
+
+/** Course-level average and concept: a mean for numeric courses, a median concept otherwise. */
+function courseAverage(list: StudentMetrics[], isConceptual: boolean) {
+  if (!isConceptual) {
+    const average = averageOf(
+      list.map((s) => s.performance.average).filter((a): a is number => a !== null),
+    );
+    return { average, concept: null };
+  }
+  const concept = medianConcept(
+    list.map((s) => s.performance.concept).filter((c): c is ConceptualGrade => c !== null),
+  );
+  return { average: concept ? CONCEPTUAL_SCORE[concept] : null, concept };
 }
 
 function examAverage(exam: Exam): number | null {
@@ -130,12 +155,16 @@ function buildCourse(
   const sorted = [...students].sort((a, b) =>
     fullName(a.student).localeCompare(fullName(b.student), "es"),
   );
-  const summary = summarize(sorted);
+  const isConceptual = course.gradingType === "conceptual";
+  const counts = countStudents(sorted);
   return {
     course,
     teachers,
-    ...summary,
-    bimesterAverages: bimesterAverages(sorted),
+    ...counts,
+    ...courseAverage(sorted, isConceptual),
+    passRate: isConceptual ? null : percentOf(counts.passed, counts.passed + counts.failed),
+    failRate: isConceptual ? null : percentOf(counts.failed, counts.passed + counts.failed),
+    bimesterAverages: bimesterAverages(sorted, isConceptual),
     examsTaken: exams.filter((e) => e.date <= day).length,
     examsUpcoming: exams.filter((e) => e.date > day).length,
     examsAverage: averageOf(
@@ -162,9 +191,10 @@ export async function loadDashboard(deps: UseCaseDeps): Promise<DashboardMetrics
   const metrics: StudentMetrics[] = await Promise.all(
     allStudents.map(async (student) => {
       const card = await loadOrCreateReportCard(deps, student);
+      const gradingType = allCourses.find((c) => c.id === student.courseId)?.gradingType;
       return {
         student,
-        performance: studentPerformance(card),
+        performance: studentPerformance(card, gradingType),
       };
     }),
   );
@@ -181,18 +211,19 @@ export async function loadDashboard(deps: UseCaseDeps): Promise<DashboardMetrics
 
   const level = (wanted: "high" | "medium") =>
     metrics.filter((m) => m.performance.risk.level === wanted).length;
-  const totals = summarize(metrics);
+  const numericStudents = metrics.filter((m) => m.performance.gradingType === "numeric");
   return {
     today: day,
     year: deps.year,
     school: {
-      ...totals,
+      ...countStudents(metrics),
+      average: courseAverage(numericStudents, false).average,
       atRiskHigh: level("high"),
       atRiskMedium: level("medium"),
       examsTaken: courseMetrics.reduce((sum, c) => sum + c.examsTaken, 0),
       examsUpcoming: courseMetrics.reduce((sum, c) => sum + c.examsUpcoming, 0),
     },
-    bimesterAverages: bimesterAverages(metrics),
+    bimesterAverages: bimesterAverages(numericStudents, false),
     courses: courseMetrics,
   };
 }

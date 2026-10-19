@@ -1,7 +1,13 @@
 import type { CourseMetrics, StudentMetrics } from "@/application/dashboard";
 import type { StatusTone } from "@/components/ui/status-badge";
+import { courseName } from "@/domain/course";
 import type { GradingType } from "@/domain/grading";
-import { CONCEPTUAL_SCORE, type RiskLevel, type Trend } from "@/domain/performance";
+import {
+  nearestConcept,
+  type RiskLevel,
+  type StudentPerformance,
+  type Trend,
+} from "@/domain/performance";
 
 /** Pure presentation helpers for Dirección's "Tablero". */
 
@@ -55,15 +61,10 @@ export function riskBadge(level: RiskLevel): { label: string; tone: StatusTone }
   return RISK_BADGES[level];
 }
 
-/** Numeric: "7,5". Conceptual: nearest label with its equivalent, "Muy bien (8)". */
+/** Numeric: "7,5". Conceptual: the nearest concept, never a number ("Muy bien"). */
 export function scoreLabel(score: number | null, gradingType: GradingType): string {
   if (score === null) return "—";
-  if (gradingType === "numeric") return decimalComma(score);
-  const entries = Object.entries(CONCEPTUAL_SCORE);
-  const [label, value] = entries.reduce((best, entry) =>
-    Math.abs(entry[1] - score) < Math.abs(best[1] - score) ? entry : best,
-  );
-  return `${label} (${decimalComma(value)})`;
+  return gradingType === "numeric" ? decimalComma(score) : nearestConcept(score);
 }
 
 export type ComparisonKey =
@@ -97,6 +98,46 @@ function comparisonValue(course: CourseMetrics, key: ComparisonKey): number | nu
   return key === "atRisk" ? course.atRisk.length : course[key];
 }
 
+export interface ComparisonGroup {
+  /** "2° Grado", "1° Año". */
+  title: string;
+  courses: CourseMetrics[];
+}
+
+/**
+ * Divisions of the same grade or year, side by side. A grade with a single
+ * division has nothing to be compared with and is left out.
+ */
+export function comparisonGroups(courses: CourseMetrics[]): ComparisonGroup[] {
+  const groups = new Map<string, ComparisonGroup & { level: number; year: number }>();
+  for (const metrics of courses) {
+    const { level, year } = metrics.course;
+    const key = `${level}-${year}`;
+    const group = groups.get(key) ?? {
+      title: courseName(level, year, "").trim(),
+      courses: [],
+      level: level === "primary" ? 0 : 1,
+      year,
+    };
+    group.courses.push(metrics);
+    groups.set(key, group);
+  }
+  return [...groups.values()]
+    .filter((g) => g.courses.length >= 2)
+    .sort((a, b) => a.level - b.level || a.year - b.year)
+    .map(({ title, courses: members }) => ({
+      title,
+      courses: [...members].sort((a, b) => a.course.division.localeCompare(b.course.division)),
+    }));
+}
+
+/** "6 (75 %)" for numeric courses; conceptual courses show the count alone. */
+export function passFailText(metrics: CourseMetrics, which: "passed" | "failed"): string {
+  const count = metrics[which];
+  if (metrics.course.gradingType === "conceptual") return String(count);
+  return `${count} (${formatPercent(which === "passed" ? metrics.passRate : metrics.failRate)})`;
+}
+
 /** Course ids holding the best and the worst value of a column (none without contrast). */
 export function rankCourses(
   courses: CourseMetrics[],
@@ -115,6 +156,11 @@ export function rankCourses(
 
 export type ProgressFilter = "all" | "improved" | "declined";
 
+/** Size of a student's move: percentage points (numeric) or scale levels (conceptual). */
+function progressMagnitude(performance: StudentPerformance): number {
+  return performance.changePct ?? performance.levelChange ?? 0;
+}
+
 /** Students for the progress table; the filtered views put the biggest moves first. */
 export function progressRows(students: StudentMetrics[], filter: ProgressFilter): StudentMetrics[] {
   if (filter === "all") return students;
@@ -122,7 +168,35 @@ export function progressRows(students: StudentMetrics[], filter: ProgressFilter)
   const sign = filter === "improved" ? -1 : 1;
   return students
     .filter((s) => s.performance.trend === wanted)
-    .sort((a, b) => sign * ((a.performance.changePct ?? 0) - (b.performance.changePct ?? 0)));
+    .sort(
+      (a, b) => sign * (progressMagnitude(a.performance) - progressMagnitude(b.performance)),
+    );
+}
+
+/** "+2 niveles", "−1 nivel", "Sin cambios". */
+function formatLevels(levels: number): string {
+  if (levels === 0) return "Sin cambios";
+  const body = `${Math.abs(levels)} ${Math.abs(levels) === 1 ? "nivel" : "niveles"}`;
+  return levels > 0 ? `+${body}` : `${MINUS}${body}`;
+}
+
+/**
+ * How a student moved since the previous graded bimester. Numeric: "+12,5 %".
+ * Conceptual: "+2 niveles" with the detail "Bien → Muy bien".
+ */
+export function progressChange(performance: StudentPerformance): {
+  text: string;
+  detail: string | null;
+} {
+  if (performance.gradingType === "numeric") {
+    return { text: formatChange(performance.changePct), detail: null };
+  }
+  const { levelChange, previous, latest } = performance;
+  if (levelChange === null || !previous || !latest) return { text: "—", detail: null };
+  return {
+    text: formatLevels(levelChange),
+    detail: `${nearestConcept(previous.score)} → ${nearestConcept(latest.score)}`,
+  };
 }
 
 /** Share of the roster that passed, failed or has no grades yet (0-100, one decimal). */

@@ -4,7 +4,14 @@ import type { CourseMetrics } from "@/application/dashboard";
 import { SectionHeading } from "@/components/layout/page-header";
 import { displayName } from "@/domain/user";
 import { cn } from "@/lib/utils";
-import { formatPercent, rankCourses, scoreLabel, type ComparisonKey } from "./dashboard-model";
+import {
+  comparisonGroups,
+  passFailText,
+  rankCourses,
+  scoreLabel,
+  type ComparisonGroup,
+  type ComparisonKey,
+} from "./dashboard-model";
 
 const TH =
   "h-10 px-3 text-left text-[11px] font-semibold tracking-[0.05em] text-navy/75 uppercase";
@@ -59,8 +66,8 @@ function cells(metrics: CourseMetrics): { key: ComparisonKey; label: string; tex
       label: "Promedio",
       text: scoreLabel(metrics.average, metrics.course.gradingType),
     },
-    { key: "passRate", label: "Aprobados", text: formatPercent(metrics.passRate) },
-    { key: "failRate", label: "Desaprobados", text: formatPercent(metrics.failRate) },
+    { key: "passRate", label: "Aprobados", text: passFailText(metrics, "passed") },
+    { key: "failRate", label: "Desaprobados", text: passFailText(metrics, "failed") },
     { key: "examsTaken", label: "Exámenes tomados", text: String(metrics.examsTaken) },
     { key: "atRisk", label: "En riesgo", text: String(metrics.atRisk.length) },
   ];
@@ -77,16 +84,14 @@ function CourseLink({ metrics }: { metrics: CourseMetrics }) {
   );
 }
 
-/** Side-by-side course metrics. Best value per column is marked green, the one to improve amber. */
-export function CourseComparison({ courses }: { courses: CourseMetrics[] }) {
+/** One grade or year with its divisions side by side; ranks are computed inside the group. */
+function GroupComparison({ group }: { group: ComparisonGroup }) {
+  const { courses } = group;
   const ranks = Object.fromEntries(KEYS.map((k) => [k, rankCourses(courses, k)])) as Ranks;
 
   return (
-    <section className="min-w-0">
-      <SectionHeading
-        title="Comparativa de cursos"
-        description="Marcamos en verde el mejor valor de cada columna y en ámbar el que más conviene mejorar."
-      />
+    <section className="min-w-0" aria-label={`Comparativa de ${group.title}`}>
+      <h3 className="mb-2 font-serif text-xl font-semibold text-navy">{group.title}</h3>
 
       <ul className="flex flex-col gap-3 md:hidden">
         {courses.map((metrics) => (
@@ -159,10 +164,31 @@ export function CourseComparison({ courses }: { courses: CourseMetrics[] }) {
           </tbody>
         </table>
       </div>
-      <p className="mt-2 text-sm text-muted-foreground">
-        Los cursos con notas conceptuales se convierten con esta equivalencia: Excelente 10 · Muy
-        bien + 9 · Muy bien 8 · Bien + 7,5 · Bien 7 · Regular 6 · Desaprobado 4.
-      </p>
+    </section>
+  );
+}
+
+/** Divisions of the same grade or year compared side by side. Best value green, the one to improve amber. */
+export function CourseComparison({ courses }: { courses: CourseMetrics[] }) {
+  const groups = comparisonGroups(courses);
+
+  return (
+    <section className="min-w-0">
+      <SectionHeading
+        title="Comparativa de cursos"
+        description="Se comparan las divisiones de un mismo grado o año. En verde el mejor valor de cada columna y en ámbar el que más conviene mejorar."
+      />
+      {groups.length === 0 ? (
+        <p className="surface-card px-5 py-4 text-base text-muted-foreground">
+          Todavía no hay grados o años con más de una división para comparar.
+        </p>
+      ) : (
+        <div className="flex flex-col gap-6">
+          {groups.map((group) => (
+            <GroupComparison key={group.title} group={group} />
+          ))}
+        </div>
+      )}
     </section>
   );
 }

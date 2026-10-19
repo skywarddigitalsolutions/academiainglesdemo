@@ -7,7 +7,7 @@ import { fullName } from "@/domain/student";
 import { bimesterLabel } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import {
-  formatChange,
+  progressChange,
   progressRows,
   scoreLabel,
   trendTone,
@@ -58,7 +58,7 @@ export function StudentProgressTable({ metrics }: { metrics: CourseMetrics }) {
                   {n}°
                 </th>
               ))}
-              <th className={TH}>Promedio</th>
+              <th className={TH}>{gradingType === "conceptual" ? "Concepto general" : "Promedio"}</th>
               <th className={TH}>Cambio vs bimestre anterior</th>
             </tr>
           </thead>
@@ -73,6 +73,7 @@ export function StudentProgressTable({ metrics }: { metrics: CourseMetrics }) {
             {rows.map(({ student, performance }) => {
               const tone = trendTone(performance.trend);
               const Icon = performance.trend ? TREND_ICON[performance.trend] : null;
+              const change = progressChange(performance);
               const compare =
                 performance.latest && performance.previous
                   ? `${bimesterLabel(performance.latest.bimester)} vs ${bimesterLabel(performance.previous.bimester)}`
@@ -97,9 +98,12 @@ export function StudentProgressTable({ metrics }: { metrics: CourseMetrics }) {
                       )}
                     >
                       {Icon && <Icon className="size-4" aria-hidden />}
-                      {formatChange(performance.changePct)}
+                      {change.text}
                       <span className="sr-only"> ({compare})</span>
                     </span>
+                    {change.detail && (
+                      <span className="block text-sm text-muted-foreground">{change.detail}</span>
+                    )}
                   </td>
                 </tr>
               );

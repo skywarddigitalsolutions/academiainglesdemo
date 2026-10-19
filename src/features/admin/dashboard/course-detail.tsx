@@ -22,6 +22,7 @@ function MiniKpi({ label, value, helper }: { label: string; value: string; helpe
 }
 
 function Detail({ metrics }: { metrics: CourseMetrics }) {
+  const numeric = metrics.course.gradingType === "numeric";
   return (
     <div className="flex flex-col gap-8">
       <ul className="grid grid-cols-2 gap-3 md:grid-cols-3">
@@ -32,12 +33,12 @@ function Detail({ metrics }: { metrics: CourseMetrics }) {
         <MiniKpi
           label="Aprobados"
           value={String(metrics.passed)}
-          helper={formatPercent(metrics.passRate)}
+          helper={numeric ? formatPercent(metrics.passRate) : undefined}
         />
         <MiniKpi
           label="Desaprobados"
           value={String(metrics.failed)}
-          helper={formatPercent(metrics.failRate)}
+          helper={numeric ? formatPercent(metrics.failRate) : undefined}
         />
       </ul>
 

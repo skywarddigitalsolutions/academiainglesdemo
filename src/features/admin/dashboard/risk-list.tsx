@@ -3,7 +3,7 @@ import { CheckCircle2 } from "lucide-react";
 import type { StudentMetrics } from "@/application/dashboard";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { fullName } from "@/domain/student";
-import { riskBadge } from "./dashboard-model";
+import { riskBadge, scoreLabel } from "./dashboard-model";
 
 /** Students who may have to sit the March exam, with the plain-language reasons. */
 export function RiskList({ students }: { students: StudentMetrics[] }) {
@@ -38,11 +38,9 @@ export function RiskList({ students }: { students: StudentMetrics[] }) {
               </Link>
             </div>
             <p className="text-sm text-muted-foreground">
-              Promedio actual:{" "}
+              {performance.gradingType === "conceptual" ? "Concepto general" : "Promedio actual"}:{" "}
               <span className="font-semibold text-foreground tabular-nums">
-                {performance.average === null
-                  ? "—"
-                  : String(performance.average).replace(".", ",")}
+                {scoreLabel(performance.average, performance.gradingType)}
               </span>
             </p>
             <ul className="list-disc pl-5 text-sm text-foreground">
