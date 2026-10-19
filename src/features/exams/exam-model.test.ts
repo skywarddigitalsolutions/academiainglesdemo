@@ -9,10 +9,8 @@ import {
   examGradeChanges,
   examGradeTexts,
   examStatusBadge,
-  formatStatsSummary,
   examStatusInfo,
   groupAgenda,
-  relativeDayLabel,
 } from "./exam-model";
 
 const exam: Exam = {
@@ -72,31 +70,6 @@ describe("exam status badge", () => {
   });
 });
 
-describe("exam stats summary", () => {
-  it("describes numeric and conceptual results without deciding them", () => {
-    expect(formatStatsSummary({ total: 8, graded: 6, average: 7.25, atPassMark: 5 })).toEqual([
-      "6 de 8 calificados",
-      "Promedio 7,25",
-      "5 con nota de aprobación",
-    ]);
-    expect(formatStatsSummary({ total: 7, graded: 1, average: null, atPassMark: 1 })).toEqual([
-      "1 de 7 calificados",
-      "1 con nota de aprobación",
-    ]);
-    expect(formatStatsSummary({ total: 7, graded: 0, average: null, atPassMark: 0 })).toEqual([
-      "0 de 7 calificados",
-    ]);
-  });
-});
-
-describe("relative day label", () => {
-  it("names today, tomorrow and the next days", () => {
-    expect(relativeDayLabel("2026-10-15", "2026-10-15")).toBe("Hoy");
-    expect(relativeDayLabel("2026-10-16", "2026-10-15")).toBe("Mañana");
-    expect(relativeDayLabel("2026-10-20", "2026-10-15")).toBe("En 5 días");
-    expect(relativeDayLabel("2026-10-10", "2026-10-15")).toBeNull();
-  });
-});
 
 function stats(total: number, graded: number, average: number | null = null, atPassMark = graded): ExamStats {
   return { total, graded, average, atPassMark };

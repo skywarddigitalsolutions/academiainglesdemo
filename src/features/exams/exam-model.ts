@@ -54,26 +54,9 @@ export function examStatusBadge(status: ExamStatus): { label: string; tone: Stat
   return STATUS_BADGES[status];
 }
 
-/** Short facts about an exam; the system never decides who passed. */
-export function formatStatsSummary(stats: ExamStats): string[] {
-  const parts = [`${stats.graded} de ${stats.total} calificados`];
-  if (stats.average !== null) parts.push(`Promedio ${formatGrade(stats.average)}`);
-  if (stats.graded > 0) parts.push(`${stats.atPassMark} con nota de aprobación`);
-  return parts;
-}
-
 function dayNumber(day: string): number {
   const [y, m, d] = day.split("-").map(Number);
   return Date.UTC(y, m - 1, d) / 86_400_000;
-}
-
-/** "Hoy", "Mañana" or "En N días" for upcoming days; null for past ones. */
-export function relativeDayLabel(day: string, today: string): string | null {
-  const diff = dayNumber(day) - dayNumber(today);
-  if (diff < 0) return null;
-  if (diff === 0) return "Hoy";
-  if (diff === 1) return "Mañana";
-  return `En ${diff} días`;
 }
 
 /* ------------------------------------------------------------------------- */
