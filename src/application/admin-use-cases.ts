@@ -1,4 +1,4 @@
-import { validateCourse, type Course } from "@/domain/course";
+import { validateCourse, type Course, type SchoolLevel } from "@/domain/course";
 import { createCourseNote, type CourseNote } from "@/domain/course-note";
 import { approveReview, returnReview, type PeriodReview } from "@/domain/period-review";
 import {
@@ -7,7 +7,6 @@ import {
   type ReportPeriod,
 } from "@/domain/report-card";
 import { DomainError } from "@/domain/errors";
-import type { GradingType } from "@/domain/grading";
 import {
   fullName,
   linkGuardian,
@@ -62,10 +61,12 @@ export interface ParentInput {
 
 export interface CourseInput {
   id?: string;
-  name: string;
+  /** Name and grading type are derived from level, year and division. */
+  level: SchoolLevel;
+  year: number;
+  division: string;
   /** Stored shape, e.g. "Lunes y miércoles · 14:00 a 15:30" (see formatSchedule). */
   schedule: string;
-  gradingType: GradingType;
   teacherIds: string[];
   nextCourseName: string;
 }
@@ -296,9 +297,13 @@ export function createAdminUseCases(deps: UseCaseDeps) {
       for (const id of input.teacherIds) await requireTeacher(id);
       const course = validateCourse({
         id: existing?.id ?? deps.ids.next("course"),
-        name: input.name,
+        // name and gradingType are derived by validateCourse
+        name: "",
+        level: input.level,
+        year: input.year,
+        division: input.division,
+        gradingType: "numeric",
         schedule: input.schedule,
-        gradingType: input.gradingType,
         teacherIds: input.teacherIds,
         nextCourseName: input.nextCourseName,
       });
@@ -316,7 +321,7 @@ export function createAdminUseCases(deps: UseCaseDeps) {
       ) {
         throw new DomainError(
           "grading-type-locked",
-          "No se puede cambiar el tipo de calificación de un curso con alumnos.",
+          "No se puede cambiar el grado o año a uno con otro tipo de calificación en un curso con alumnos.",
         );
       }
       // Report cards, approval batches and notes are created lazily per course.

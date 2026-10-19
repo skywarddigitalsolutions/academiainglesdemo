@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { courseName, gradingTypeFor } from "@/domain/course";
 import { examStatus, upcomingWithin } from "@/domain/exam";
 import { isValidGrade } from "@/domain/grading";
 import { getBimester, getBimesterStatus } from "@/domain/report-card";
@@ -25,7 +26,18 @@ describe("demo seed", () => {
     );
     expect(byName["2° Grado A"]).toBe("conceptual");
     expect(byName["5° Grado A"]).toBe("numeric");
-    expect(byName["1° Año"]).toBe("numeric");
+    expect(byName["1° Año A"]).toBe("numeric");
+    expect(byName["2° Grado B"]).toBe("conceptual");
+    expect(byName["1° Año B"]).toBe("numeric");
+  });
+
+  it("gives every course a level, year and division consistent with its name", () => {
+    for (const course of seed.courses) {
+      expect(course.name).toBe(courseName(course.level, course.year, course.division));
+      expect(course.gradingType).toBe(gradingTypeFor(course.level, course.year));
+    }
+    const byYear = seed.courses.filter((c) => c.level === "primary" && c.year === 2);
+    expect(byYear.map((c) => c.division).sort()).toEqual(["A", "B"]);
   });
 
   it("assigns the demo teacher to more than one course", () => {

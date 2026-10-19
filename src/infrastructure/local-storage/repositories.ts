@@ -25,7 +25,7 @@ import { STORAGE_PREFIX, type StorageLike } from "./storage";
  * Bump when the stored shape changes so old browsers get a fresh seed.
  * v3: approval batches and notes from Dirección (older data is ignored).
  */
-const DATA_VERSION = "v3:";
+const DATA_VERSION = "v4:";
 
 const KEYS = {
   users: `${STORAGE_PREFIX}${DATA_VERSION}users`,

@@ -217,9 +217,9 @@ describe("teacher", () => {
 describe("admin", () => {
   it("summarizes the institution", async () => {
     const overview = await uc.admin.getOverview();
-    expect(overview.totals.students).toBe(21);
-    expect(overview.totals.courses).toBe(3);
-    expect(overview.courses).toHaveLength(3);
+    expect(overview.totals.students).toBe(33);
+    expect(overview.totals.courses).toBe(5);
+    expect(overview.courses).toHaveLength(5);
     expect(overview.courses[0].progress).toHaveLength(5);
   });
 
@@ -423,16 +423,21 @@ describe("admin", () => {
 
 describe("admin courses", () => {
   const newCourse = {
-    name: "3° Grado B",
+    level: "primary" as const,
+    year: 5,
+    division: "B",
     schedule: "Sábados · 09:00 a 10:30",
-    gradingType: "numeric" as const,
     teacherIds: [OTHER_TEACHER],
-    nextCourseName: "4° Grado B",
+    nextCourseName: "6° Grado B",
   };
 
   it("creates a course that works in the grade sheet and the teacher panel", async () => {
     const course = await uc.admin.saveCourse(newCourse);
-    expect(course).toMatchObject({ id: "course-1", name: "3° Grado B" });
+    expect(course).toMatchObject({
+      id: "course-1",
+      name: "5° Grado B",
+      gradingType: "numeric",
+    });
     expect((await uc.admin.listCourses()).map((c) => c.course.id)).toContain(course.id);
 
     const student = await uc.admin.saveStudent({
@@ -453,8 +458,11 @@ describe("admin courses", () => {
   });
 
   it("validates the course fields and rejects duplicated names", async () => {
-    await expect(uc.admin.saveCourse({ ...newCourse, name: " " })).rejects.toThrow(DomainError);
-    await expect(uc.admin.saveCourse({ ...newCourse, name: "5° grado a" })).rejects.toThrow(
+    await expect(uc.admin.saveCourse({ ...newCourse, division: " " })).rejects.toThrow(
+      DomainError,
+    );
+    await expect(uc.admin.saveCourse({ ...newCourse, year: 9 })).rejects.toThrow(DomainError);
+    await expect(uc.admin.saveCourse({ ...newCourse, division: "a" })).rejects.toThrow(
       "Ya existe un curso con ese nombre.",
     );
     await expect(
@@ -466,9 +474,10 @@ describe("admin courses", () => {
     const before = (await uc.admin.listCourses()).find((c) => c.course.id === "c-1y")!.course;
     await uc.admin.saveCourse({
       id: "c-1y",
-      name: "1° Año A",
+      level: before.level,
+      year: before.year,
+      division: before.division,
       schedule: before.schedule,
-      gradingType: before.gradingType,
       teacherIds: [TEACHER],
       nextCourseName: before.nextCourseName,
     });
@@ -485,13 +494,25 @@ describe("admin courses", () => {
     await expect(
       uc.admin.saveCourse({
         id: "c-5a",
-        name: "5° Grado A",
+        level: "primary",
+        year: 3,
+        division: "A",
         schedule: "Martes y jueves · 15:00 a 16:30",
-        gradingType: "conceptual",
         teacherIds: [TEACHER],
         nextCourseName: "6° Grado A",
       }),
-    ).rejects.toThrow(DomainError);
+    ).rejects.toThrow("tipo de calificación");
+    await expect(
+      uc.admin.saveCourse({
+        id: "c-5a",
+        level: "primary",
+        year: 6,
+        division: "A",
+        schedule: "Martes y jueves · 15:00 a 16:30",
+        teacherIds: [TEACHER],
+        nextCourseName: "7° Grado A",
+      }),
+    ).resolves.toMatchObject({ name: "6° Grado A" });
   });
 
   it("deletes a course without students", async () => {
@@ -722,8 +743,8 @@ describe("teacher exams", () => {
 describe("admin exams", () => {
   it("lists the exams of every course and opens any of them", async () => {
     const agenda = await uc.admin.listExams();
-    expect(agenda.courses).toHaveLength(3);
-    expect(new Set(agenda.items.map((i) => i.course.id)).size).toBe(3);
+    expect(agenda.courses).toHaveLength(5);
+    expect(new Set(agenda.items.map((i) => i.course.id)).size).toBe(5);
     const detail = await uc.admin.getExam("ex-c-1y-1");
     expect(detail.course.id).toBe("c-1y");
     expect(detail.students).toHaveLength(6);
@@ -731,9 +752,10 @@ describe("admin exams", () => {
 
   it("removes the exams of a deleted course", async () => {
     const course = await uc.admin.saveCourse({
-      name: "4° Grado B",
+      level: "primary",
+      year: 6,
+      division: "B",
       schedule: "Lunes · 10:00 a 11:00",
-      gradingType: "numeric",
       teacherIds: [TEACHER],
       nextCourseName: "",
     });
@@ -754,7 +776,7 @@ describe("admin dashboard", () => {
     const dashboard = await uc.admin.getDashboard();
     expect(dashboard.year).toBe(2026);
     expect(dashboard.today).toBe("2026-10-15");
-    expect(dashboard.courses).toHaveLength(3);
+    expect(dashboard.courses).toHaveLength(5);
     for (const course of dashboard.courses) {
       expect(course.passed + course.failed + course.ungraded).toBe(course.studentCount);
       expect(course.students).toHaveLength(course.studentCount);
@@ -839,6 +861,6 @@ describe("demo", () => {
     await uc.admin.deleteStudent("s-01");
     await uc.demo.reset();
     const students = await uc.admin.listStudents();
-    expect(students).toHaveLength(21);
+    expect(students).toHaveLength(33);
   });
 });

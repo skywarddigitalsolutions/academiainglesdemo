@@ -23,52 +23,61 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import {
-  GRADING_TYPES,
+  SCHOOL_LEVELS,
+  courseName,
   formatSchedule,
-  gradingTypeLabel,
+  gradingTypeFor,
+  nextCourseNameFor,
   parseSchedule,
+  schoolLevelLabel,
+  yearsFor,
   type Course,
+  type SchoolLevel,
 } from "@/domain/course";
-import type { GradingType } from "@/domain/grading";
 import type { User } from "@/domain/user";
 import { errorMessage } from "@/lib/error-message";
 import { getServices } from "@/providers/services";
 
 export interface CourseFormState {
   id?: string;
-  name: string;
+  level: SchoolLevel;
+  year: number;
+  division: string;
   days: string;
   start: string;
   end: string;
-  gradingType: GradingType;
   teacherIds: string[];
   nextCourseName: string;
 }
 
 export function newCourseForm(): CourseFormState {
   return {
-    name: "",
+    level: "primary",
+    year: 1,
+    division: "A",
     days: "",
     start: "",
     end: "",
-    gradingType: "numeric",
     teacherIds: [],
-    nextCourseName: "",
+    nextCourseName: nextCourseNameFor("primary", 1, "A"),
   };
 }
 
 export function editCourseForm(course: Course): CourseFormState {
   return {
     id: course.id,
-    name: course.name,
+    level: course.level,
+    year: course.year,
+    division: course.division,
     ...parseSchedule(course.schedule),
-    gradingType: course.gradingType,
     teacherIds: course.teacherIds,
     nextCourseName: course.nextCourseName,
   };
 }
 
-/** Create / edit a course: schedule, grading type and assigned teachers. */
+const DIVISIONS = ["A", "B", "C", "D", "E", "F", "G", "H"];
+
+/** Create / edit a course: level, year, division, schedule and assigned teachers. */
 export function CourseDialog({
   initial,
   teachers,
@@ -78,7 +87,7 @@ export function CourseDialog({
 }: {
   initial: CourseFormState;
   teachers: User[];
-  /** The grading type cannot change once the course has students. */
+  /** The grading type (derived from level and year) cannot change once the course has students. */
   hasStudents: boolean;
   onClose: () => void;
   onSaved: () => void;
@@ -86,6 +95,19 @@ export function CourseDialog({
   const [form, setForm] = useState(initial);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // The promotion target follows the course until the admin edits it by hand.
+  const [nextEdited, setNextEdited] = useState(Boolean(initial.id));
+
+  function changeClass(patch: Partial<Pick<CourseFormState, "level" | "year" | "division">>) {
+    setForm((f) => {
+      const next = { ...f, ...patch };
+      if (!yearsFor(next.level).includes(next.year)) next.year = 1;
+      if (!nextEdited) {
+        next.nextCourseName = nextCourseNameFor(next.level, next.year, next.division);
+      }
+      return next;
+    });
+  }
 
   function toggleTeacher(id: string, checked: boolean) {
     setForm((f) => ({
@@ -101,9 +123,10 @@ export function CourseDialog({
     try {
       const course = await getServices().admin.saveCourse({
         id: form.id,
-        name: form.name,
+        level: form.level,
+        year: form.year,
+        division: form.division,
         schedule: formatSchedule(form),
-        gradingType: form.gradingType,
         teacherIds: form.teacherIds,
         nextCourseName: form.nextCourseName,
       });
@@ -118,7 +141,10 @@ export function CourseDialog({
     }
   }
 
-  const lockGrading = Boolean(initial.id) && hasStudents;
+  const gradingType = gradingTypeFor(form.level, form.year);
+  const gradingChanged =
+    Boolean(initial.id) && hasStudents && gradingType !== gradingTypeFor(initial.level, initial.year);
+  const yearLabel = form.level === "primary" ? "Grado" : "Año";
 
   return (
     <Dialog open onOpenChange={(open) => !open && onClose()}>
@@ -126,32 +152,93 @@ export function CourseDialog({
         <DialogHeader>
           <DialogTitle>{initial.id ? "Editar curso" : "Nuevo curso"}</DialogTitle>
           <DialogDescription>
-            El tipo de calificación se define por curso y aplica a todos sus boletines.
+            El nivel, el grado o año y la división definen el nombre del curso y su tipo de calificación.
           </DialogDescription>
         </DialogHeader>
         <form onSubmit={handleSubmit} className="flex flex-col gap-4">
-          <div className="grid gap-4 sm:grid-cols-2">
+          <div className="grid gap-4 sm:grid-cols-3">
             <div className="flex flex-col gap-1.5">
-              <Label htmlFor="co-name">Nombre</Label>
-              <Input
-                id="co-name"
-                value={form.name}
-                onChange={(e) => setForm({ ...form, name: e.target.value })}
-                placeholder="Ej.: 3° Grado B"
-                className="h-10"
-                required
-              />
+              <Label htmlFor="co-level">Nivel</Label>
+              <Select
+                value={form.level}
+                onValueChange={(value) => changeClass({ level: value as SchoolLevel })}
+              >
+                <SelectTrigger id="co-level" className="h-10 w-full">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {SCHOOL_LEVELS.map((level) => (
+                    <SelectItem key={level} value={level}>
+                      {schoolLevelLabel(level)}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
             <div className="flex flex-col gap-1.5">
-              <Label htmlFor="co-next">Curso siguiente</Label>
-              <Input
-                id="co-next"
-                value={form.nextCourseName}
-                onChange={(e) => setForm({ ...form, nextCourseName: e.target.value })}
-                placeholder="Ej.: 4° Grado B"
-                className="h-10"
-              />
+              <Label htmlFor="co-year">{yearLabel}</Label>
+              <Select
+                value={String(form.year)}
+                onValueChange={(value) => changeClass({ year: Number(value) })}
+              >
+                <SelectTrigger id="co-year" className="h-10 w-full">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {yearsFor(form.level).map((year) => (
+                    <SelectItem key={year} value={String(year)}>
+                      {year}°
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
+            <div className="flex flex-col gap-1.5">
+              <Label htmlFor="co-division">División</Label>
+              <Select
+                value={form.division}
+                onValueChange={(value) => changeClass({ division: value })}
+              >
+                <SelectTrigger id="co-division" className="h-10 w-full">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {DIVISIONS.map((division) => (
+                    <SelectItem key={division} value={division}>
+                      {division}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+          <div className="rounded-lg bg-muted px-3 py-2 text-sm">
+            <p>
+              <span className="text-muted-foreground">Curso: </span>
+              <span className="font-medium">{courseName(form.level, form.year, form.division)}</span>
+            </p>
+            <p>
+              <span className="text-muted-foreground">Calificación: </span>
+              <span className="font-medium">{gradingType === "conceptual" ? "Nota conceptual" : "Nota numérica"}</span>
+            </p>
+            {gradingChanged && (
+              <p className="mt-1 text-xs text-destructive">
+                Ese grado cambia el tipo de calificación y el curso ya tiene alumnos.
+              </p>
+            )}
+          </div>
+          <div className="flex flex-col gap-1.5">
+            <Label htmlFor="co-next">Curso siguiente</Label>
+            <Input
+              id="co-next"
+              value={form.nextCourseName}
+              onChange={(e) => {
+                setNextEdited(true);
+                setForm({ ...form, nextCourseName: e.target.value });
+              }}
+              placeholder="Ej.: 4° Grado B"
+              className="h-10"
+            />
           </div>
           <div className="flex flex-col gap-1.5">
             <Label htmlFor="co-days">Días de cursada</Label>
@@ -187,30 +274,6 @@ export function CourseDialog({
                 required
               />
             </div>
-          </div>
-          <div className="flex flex-col gap-1.5">
-            <Label htmlFor="co-grading">Tipo de calificación</Label>
-            <Select
-              value={form.gradingType}
-              onValueChange={(value) => setForm({ ...form, gradingType: value as GradingType })}
-              disabled={lockGrading}
-            >
-              <SelectTrigger id="co-grading" className="h-10 w-full">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {GRADING_TYPES.map((type) => (
-                  <SelectItem key={type} value={type}>
-                    {gradingTypeLabel(type)}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            {lockGrading && (
-              <p className="text-xs text-muted-foreground">
-                No se puede cambiar porque el curso ya tiene alumnos.
-              </p>
-            )}
           </div>
           <fieldset className="flex flex-col gap-2">
             <legend className="mb-2 text-sm font-medium">

@@ -19,7 +19,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { gradingTypeLabel } from "@/domain/course";
+import { gradingTypeLabel, schoolLevelLabel } from "@/domain/course";
 import { displayName } from "@/domain/user";
 import { errorMessage } from "@/lib/error-message";
 import { getServices } from "@/providers/services";
@@ -101,7 +101,7 @@ export function CoursesList() {
                     <TableCell className="font-medium whitespace-nowrap">{course.name}</TableCell>
                     <TableCell data-label="Calificación">
                       <span className="text-xs whitespace-nowrap text-muted-foreground">
-                        {gradingTypeLabel(course.gradingType)}
+                        {schoolLevelLabel(course.level)} · {gradingTypeLabel(course.gradingType)}
                       </span>
                     </TableCell>
                     <TableCell data-label="Horario" className="whitespace-nowrap text-muted-foreground tabular-nums">

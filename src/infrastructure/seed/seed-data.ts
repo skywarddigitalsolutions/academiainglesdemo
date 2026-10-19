@@ -66,14 +66,31 @@ const COURSES: Course[] = [
   {
     id: "c-2a",
     name: "2° Grado A",
+    level: "primary",
+    year: 2,
+    division: "A",
     gradingType: "conceptual",
     teacherIds: ["u-teacher-1"],
     nextCourseName: "3° Grado A",
     schedule: "Lunes y miércoles · 14:00 a 15:30",
   },
   {
+    id: "c-2b",
+    name: "2° Grado B",
+    level: "primary",
+    year: 2,
+    division: "B",
+    gradingType: "conceptual",
+    teacherIds: ["u-teacher-2"],
+    nextCourseName: "3° Grado B",
+    schedule: "Martes y jueves · 14:00 a 15:30",
+  },
+  {
     id: "c-5a",
     name: "5° Grado A",
+    level: "primary",
+    year: 5,
+    division: "A",
     gradingType: "numeric",
     teacherIds: ["u-teacher-1"],
     nextCourseName: "6° Grado A",
@@ -81,11 +98,25 @@ const COURSES: Course[] = [
   },
   {
     id: "c-1y",
-    name: "1° Año",
+    name: "1° Año A",
+    level: "secondary",
+    year: 1,
+    division: "A",
     gradingType: "numeric",
     teacherIds: ["u-teacher-2"],
-    nextCourseName: "2° Año",
+    nextCourseName: "2° Año A",
     schedule: "Lunes y viernes · 17:00 a 18:30",
+  },
+  {
+    id: "c-1b",
+    name: "1° Año B",
+    level: "secondary",
+    year: 1,
+    division: "B",
+    gradingType: "numeric",
+    teacherIds: ["u-teacher-2"],
+    nextCourseName: "2° Año B",
+    schedule: "Miércoles y viernes · 17:00 a 18:30",
   },
 ];
 
@@ -101,6 +132,14 @@ const STUDENT_ROWS: Record<string, StudentRow[]> = {
     ["s-05", "Isabella", "Pereyra", [], 8],
     ["s-06", "Joaquín", "Suárez", [], 6.5],
     ["s-07", "Emma", "Ríos", [], 8.5],
+  ],
+  "c-2b": [
+    ["s-22", "Renata", "Aguirre", ["u-parent-3"], 7],
+    ["s-23", "Thiago", "Benítez", [], 6.5],
+    ["s-24", "Olivia", "Cabrera", [], 8],
+    ["s-25", "Lorenzo", "Duarte", [], 6],
+    ["s-26", "Alma", "Escobar", [], 7.5],
+    ["s-27", "Bautista", "Funes", [], 5.5],
   ],
   "c-5a": [
     ["s-08", "Tomás", "Romero", ["u-parent-1", "u-parent-2"], 7.5],
@@ -119,6 +158,14 @@ const STUDENT_ROWS: Record<string, StudentRow[]> = {
     ["s-19", "Nicolás", "Giménez", [], 6.5],
     ["s-20", "Lucía", "Fernández", [], 8],
     ["s-21", "Facundo", "Silva", [], 7.5],
+  ],
+  "c-1b": [
+    ["s-28", "Delfina", "Gómez", ["u-parent-5"], 9],
+    ["s-29", "Ignacio", "Paz", [], 9.5],
+    ["s-30", "Juana", "Rojas", [], 8.5],
+    ["s-31", "Máximo", "Torres", [], 8],
+    ["s-32", "Pilar", "Vidal", [], 9],
+    ["s-33", "Ramiro", "Zárate", [], 7.5],
   ],
 };
 
@@ -263,7 +310,7 @@ const RETURN_NOTE =
 
 /**
  * Approval states shown by the demo for the 3° bimester:
- * 1° Año was sent to Dirección (pending), 5° Grado A was returned to the
+ * 1° Año A was sent to Dirección (pending), 5° Grado A was returned to the
  * teacher with a note, and 2° Grado A is still a draft.
  */
 function buildReviews(year: number, cards: ReportCard[]) {
@@ -335,6 +382,20 @@ const EXAM_ROWS: Record<string, ExamRow[]> = {
     ["10-06", 3, "practical", "Reading comprehension", "partial"],
     ["10-22", 4, "oral", "Describing people", "upcoming"],
     ["10-29", 4, "written", "Past continuous", "upcoming"],
+  ],
+  "c-2b": [
+    ["04-16", 1, "oral", "Colors and numbers", "published"],
+    ["06-11", 2, "written", "My family", "published"],
+    ["09-03", 3, "practical", "Animals poster", "published"],
+    ["10-09", 3, "oral", "Daily routines", "partial"],
+    ["10-22", 4, "written", "Food and drinks", "upcoming"],
+  ],
+  "c-1b": [
+    ["04-22", 1, "written", "Verb to be and have got", "published"],
+    ["06-25", 2, "oral", "Interview with a classmate", "published"],
+    ["09-10", 3, "written", "Comparatives and superlatives", "published"],
+    ["10-13", 3, "practical", "Unit 5 project", "ungraded"],
+    ["10-28", 4, "presentation", "My dream trip", "upcoming"],
   ],
   "c-1y": [
     ["04-17", 1, "written", "Verb to be and have got", "published"],

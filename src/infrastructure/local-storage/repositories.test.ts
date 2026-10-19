@@ -59,6 +59,9 @@ describe("local storage repositories", () => {
     await repos.courses.save({
       id: "c-new",
       name: "3° Grado B",
+      level: "primary",
+      year: 3,
+      division: "B",
       gradingType: "conceptual",
       teacherIds: [],
       nextCourseName: "",
@@ -85,7 +88,7 @@ describe("local storage repositories", () => {
 
   it("namespaces every key and versions the data collections", async () => {
     await repos.students.list();
-    expect(storage.getItem(`${STORAGE_PREFIX}v3:students`)).not.toBeNull();
+    expect(storage.getItem(`${STORAGE_PREFIX}v4:students`)).not.toBeNull();
   });
 
   it("ignores data stored with a previous schema version", async () => {
@@ -113,7 +116,7 @@ describe("local storage repositories", () => {
     expect(dates).toEqual([...dates].sort());
     expect(await repos.exams.listByCourse("c-5a", 1999)).toEqual([]);
     const all = await repos.exams.listByYear(2026);
-    expect(new Set(all.map((e) => e.courseId))).toEqual(new Set(["c-2a", "c-5a", "c-1y"]));
+    expect(new Set(all.map((e) => e.courseId))).toEqual(new Set(["c-2a", "c-2b", "c-5a", "c-1y", "c-1b"]));
   });
 
   it("saves, finds and deletes exams, and restores them on reset", async () => {
