@@ -68,6 +68,8 @@ export interface ParentExamCalendar {
 export interface ChildExams {
   /** From today on, ascending (not yet published). */
   upcoming: ParentExamView[];
+  /** Already taken, grades not published yet: families see only that a grade is pending. */
+  pending: ParentExamView[];
   /** Published exams, newest first, with the child's grade (null when not graded). */
   graded: ParentExamGrade[];
 }
@@ -172,8 +174,9 @@ export function createParentUseCases(deps: UseCaseDeps) {
     async getChildExams(parentId: string, studentId: string): Promise<ChildExams> {
       const { student } = await requireChild(parentId, studentId);
       const list = await exams.listByCourse(student.courseId, deps.year);
-      const { upcoming } = splitAgenda(list, today(deps));
+      const { upcoming, past } = splitAgenda(list, today(deps));
       return {
+        pending: past.filter((e) => e.publishedAt === null).map(toParentExamView),
         upcoming: upcoming.filter((e) => e.publishedAt === null).map(toParentExamView),
         graded: sortPastFirst(list.filter((e) => e.publishedAt !== null)).map((exam) => ({
           exam: toParentExamView(exam),

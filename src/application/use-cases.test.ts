@@ -1015,6 +1015,18 @@ describe("parent exams", () => {
     expect(martina.graded[0].exam.id).toBe("ex-c-5a-4");
   });
 
+  it("lists taken exams without published grades as pending, never with a grade", async () => {
+    const before = await uc.parent.getChildExams(PARENT, "s-08");
+    expect(before.pending.map((p) => p.id)).toEqual(["ex-c-5a-4"]);
+    expect(before.pending[0]).not.toHaveProperty("grades");
+    expect(before.graded.map((g) => g.exam.id)).not.toContain("ex-c-5a-4");
+
+    await uc.teacher.publishExamGrades(TEACHER, "ex-c-5a-4");
+    const after = await uc.parent.getChildExams(PARENT, "s-08");
+    expect(after.pending).toEqual([]);
+    expect(after.graded.map((g) => g.exam.id)).toContain("ex-c-5a-4");
+  });
+
   it("builds the exam calendar from their children's courses only, without grades", async () => {
     const calendar = await uc.parent.listExamCalendar(PARENT);
     expect(calendar.today).toBe("2026-10-15");

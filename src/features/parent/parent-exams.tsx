@@ -182,7 +182,9 @@ function ExamLine({
         </p>
       </div>
       {grade !== undefined && (
-        <span className="shrink-0 text-lg font-semibold text-foreground tabular-nums">{grade}</span>
+        <span className="max-w-[45%] shrink-0 text-right text-lg font-semibold text-foreground tabular-nums">
+          {grade}
+        </span>
       )}
     </div>
   );
@@ -219,12 +221,24 @@ function ChildExamsView({ data }: { data: ChildExams }) {
       <section aria-label="Notas de exámenes">
         <SectionHeading
           title="Notas de exámenes"
-          description="Notas publicadas por el docente. Son una referencia: la nota bimestral figura en el boletín."
+          description="El docente publica las notas cuando termina de corregir. Son una referencia: la nota bimestral figura en el boletín."
         />
-        {data.graded.length === 0 ? (
+        {data.graded.length === 0 && data.pending.length === 0 ? (
           <p className="text-sm text-muted-foreground">Todavía no hay notas de exámenes publicadas.</p>
         ) : (
           <ul className="surface-card divide-y divide-border overflow-hidden">
+            {data.pending.map((exam) => (
+              <li key={exam.id}>
+                <ExamLine
+                  exam={exam}
+                  grade={
+                    <span className="text-sm font-normal text-muted-foreground">
+                      Nota pendiente de publicación
+                    </span>
+                  }
+                />
+              </li>
+            ))}
             {data.graded.map(({ exam, grade }) => (
               <li key={exam.id}>
                 <ExamLine
