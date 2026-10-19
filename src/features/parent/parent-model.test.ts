@@ -15,6 +15,7 @@ import {
   newestPublishedFirst,
   parentBimesterRows,
   parentPeriodSteps,
+  parseExamView,
   scrollTargetPeriod,
   unreadNotice,
   unreadPeriods,
@@ -132,5 +133,14 @@ describe("scroll target from an old ?periodo= link", () => {
     expect(scrollTargetPeriod(steps, "closing")).toBeNull();
     expect(scrollTargetPeriod(steps, null)).toBeNull();
     expect(scrollTargetPeriod(parentPeriodSteps(closedYear()), "closing")).toBe("closing");
+  });
+});
+
+describe("parseExamView", () => {
+  it("accepts the two known views and falls back to the list", () => {
+    expect(parseExamView("calendar")).toBe("calendar");
+    expect(parseExamView("list")).toBe("list");
+    expect(parseExamView(null)).toBe("list");
+    expect(parseExamView("grid")).toBe("list");
   });
 });

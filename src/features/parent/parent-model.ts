@@ -89,3 +89,13 @@ export function scrollTargetPeriod(
   const step = steps.find((s) => s.period === requested);
   return step && step.state !== "pending" ? step.period : null;
 }
+
+/** How the family lists their children's upcoming exams. */
+export type ExamView = "list" | "calendar";
+
+export const EXAM_VIEW_STORAGE_KEY = "academia.parent.exam-view";
+
+/** Stored choice -> view; anything unknown means the default list. */
+export function parseExamView(raw: string | null): ExamView {
+  return raw === "calendar" ? "calendar" : "list";
+}

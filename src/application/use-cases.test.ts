@@ -1015,6 +1015,21 @@ describe("parent exams", () => {
     expect(martina.graded[0].exam.id).toBe("ex-c-5a-4");
   });
 
+  it("builds the exam calendar from their children's courses only, without grades", async () => {
+    const calendar = await uc.parent.listExamCalendar(PARENT);
+    expect(calendar.today).toBe("2026-10-15");
+    expect(calendar.courses.map((c) => c.id).sort()).toEqual(["c-2a", "c-5a"]);
+    expect(calendar.items.length).toBeGreaterThan(0);
+    for (const item of calendar.items) {
+      expect(["c-2a", "c-5a"]).toContain(item.course.id);
+      expect(item.exam).not.toHaveProperty("grades");
+      expect(["s-01", "s-08"]).toContain(item.studentId);
+    }
+    expect(new Set(calendar.items.map((i) => i.status))).toContain("published");
+    const ids = calendar.items.map((i) => i.exam.id);
+    expect(new Set(ids).size).toBe(ids.length);
+  });
+
   it("cannot see exams of other students", async () => {
     await expect(uc.parent.getChildExams(PARENT, "s-02")).rejects.toThrow(DomainError);
   });

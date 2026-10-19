@@ -1,5 +1,12 @@
 import type { Course } from "@/domain/course";
-import { sortPastFirst, splitAgenda, upcomingWithin } from "@/domain/exam";
+import {
+  examStatus,
+  sortPastFirst,
+  sortUpcomingFirst,
+  splitAgenda,
+  upcomingWithin,
+  type ExamStatus,
+} from "@/domain/exam";
 import {
   acknowledgeBimester,
   getBimesterStatus,
@@ -38,6 +45,24 @@ export interface ParentUpcomingExam {
   student: Student;
   course: Course;
   exam: ParentExamView;
+}
+
+/** One exam on the family calendar: the exam as families may see it, plus who it concerns. */
+export interface ParentCalendarItem {
+  exam: ParentExamView;
+  course: Course;
+  status: ExamStatus;
+  /** Children of this parent in the course (the first one is where the exam links to). */
+  studentId: string;
+  studentNames: string[];
+}
+
+export interface ParentExamCalendar {
+  /** Calendar day (yyyy-mm-dd). */
+  today: string;
+  /** Courses of the children, in the order of the legend. */
+  courses: Course[];
+  items: ParentCalendarItem[];
 }
 
 export interface ChildExams {
@@ -115,6 +140,32 @@ export function createParentUseCases(deps: UseCaseDeps) {
         .sort(
           (a, b) => a.exam.date.localeCompare(b.exam.date) || a.exam.id.localeCompare(b.exam.id),
         );
+    },
+
+    /** Every exam of the year in the children's courses, for the calendar (never grades). */
+    async listExamCalendar(parentId: string): Promise<ParentExamCalendar> {
+      const children = await students.listByGuardian(parentId);
+      const day = today(deps);
+      const courses: Course[] = [];
+      const items: ParentCalendarItem[] = [];
+      for (const student of children) {
+        const course = await requireCourse(deps, student.courseId);
+        if (!courses.some((c) => c.id === course.id)) {
+          courses.push(course);
+          const list = await exams.listByCourse(course.id, deps.year);
+          const siblings = children.filter((c) => c.courseId === course.id);
+          for (const exam of sortUpcomingFirst(list)) {
+            items.push({
+              exam: toParentExamView(exam),
+              course,
+              status: examStatus(exam, day),
+              studentId: student.id,
+              studentNames: siblings.map((s) => s.firstName),
+            });
+          }
+        }
+      }
+      return { today: day, courses, items };
     },
 
     /** Upcoming exams of a child and the grades already published. */

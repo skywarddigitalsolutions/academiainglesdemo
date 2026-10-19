@@ -1,10 +1,12 @@
 "use client";
 
+import type { LucideIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 export interface SegmentOption<T extends string> {
   value: T;
   label: string;
+  icon?: LucideIcon;
 }
 
 /** Large single-choice buttons (touch target >= 40px) for short lists. */
@@ -31,12 +33,13 @@ export function SegmentedControl<T extends string>({
             aria-checked={active}
             onClick={() => onChange(option.value)}
             className={cn(
-              "min-h-10 rounded-lg border px-4 text-sm font-medium transition-colors focus-visible:ring-2 focus-visible:ring-primary/40 focus-visible:outline-none",
+              "inline-flex min-h-10 items-center gap-2 rounded-lg border px-4 text-sm font-medium transition-colors focus-visible:ring-2 focus-visible:ring-primary/40 focus-visible:outline-none",
               active
                 ? "border-primary bg-primary text-primary-foreground"
                 : "border-slate-200 bg-card text-navy hover:bg-primary-tint",
             )}
           >
+            {option.icon && <option.icon className="size-4 shrink-0" aria-hidden />}
             {option.label}
           </button>
         );

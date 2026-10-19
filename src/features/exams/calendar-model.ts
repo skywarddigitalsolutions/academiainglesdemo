@@ -1,5 +1,5 @@
-import type { ExamListItem } from "@/application/exams";
-import { addDays } from "@/domain/exam";
+import type { Course } from "@/domain/course";
+import { addDays, type Exam, type ExamStatus } from "@/domain/exam";
 import { absenceDays, type TeacherAbsence } from "@/domain/teacher-absence";
 import { formatDay } from "@/lib/format";
 
@@ -7,6 +7,13 @@ import { formatDay } from "@/lib/format";
  * Pure model of the monthly exam calendar. Months are "yyyy-mm" strings and
  * days "yyyy-mm-dd"; nothing here depends on the browser time zone.
  */
+
+/** What the calendar needs of an exam: staff lists and the family view both fit. */
+export interface CalendarExam {
+  exam: Pick<Exam, "id" | "date" | "topic">;
+  course: Course;
+  status: ExamStatus;
+}
 
 export interface CalendarDay {
   iso: string;
@@ -53,7 +60,7 @@ export function monthTitle(month: string): string {
 }
 
 /** Month shown first: the one that contains today. */
-export function initialMonth(_items: ExamListItem[], today: string): string {
+export function initialMonth(_items: CalendarExam[], today: string): string {
   return monthOf(today);
 }
 
@@ -81,8 +88,8 @@ export function monthGrid(month: string, today: string): CalendarDay[][] {
 }
 
 /** Exams by calendar day; each day's list is sorted by course name. */
-export function itemsByDay(items: ExamListItem[]): Map<string, ExamListItem[]> {
-  const byDay = new Map<string, ExamListItem[]>();
+export function itemsByDay<T extends CalendarExam>(items: T[]): Map<string, T[]> {
+  const byDay = new Map<string, T[]>();
   for (const item of items) {
     const list = byDay.get(item.exam.date) ?? [];
     list.push(item);
@@ -94,7 +101,7 @@ export function itemsByDay(items: ExamListItem[]): Map<string, ExamListItem[]> {
   return byDay;
 }
 
-export function itemsInMonth(items: ExamListItem[], month: string): ExamListItem[] {
+export function itemsInMonth<T extends CalendarExam>(items: T[], month: string): T[] {
   return items.filter((i) => monthOf(i.exam.date) === month);
 }
 

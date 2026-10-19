@@ -13,7 +13,6 @@ import {
   UserPlus,
   UserX,
 } from "lucide-react";
-import type { ExamListItem } from "@/application/exams";
 import { EmptyState } from "@/components/feedback/empty-state";
 import { SectionHeading } from "@/components/layout/page-header";
 import { Button } from "@/components/ui/button";
@@ -34,6 +33,7 @@ import {
   monthTitle,
   shiftMonth,
   type AbsenceItem,
+  type CalendarExam,
 } from "./calendar-model";
 import { courseColors } from "./course-colors";
 
@@ -58,8 +58,14 @@ function monthSummary(exams: number, absences: number | null): string {
   return `${examText} y ${absenceText} este mes`;
 }
 
-function chipLabel(item: ExamListItem): string {
-  return `${item.course.name}, ${item.exam.topic}, ${STATUS_VISUAL[item.status].label}, ${formatDay(item.exam.date)}`;
+type StatusLabels = Partial<Record<ExamStatus, string>>;
+
+function statusText(status: ExamStatus, labels?: StatusLabels): string {
+  return labels?.[status] ?? STATUS_VISUAL[status].label;
+}
+
+function chipLabel(item: CalendarExam, labels?: StatusLabels): string {
+  return `${item.course.name}, ${item.exam.topic}, ${statusText(item.status, labels)}, ${formatDay(item.exam.date)}`;
 }
 
 function absenceLabel(item: AbsenceItem): string {
@@ -67,16 +73,16 @@ function absenceLabel(item: AbsenceItem): string {
 }
 
 /** What a day cell lists: teacher absences first, then exams. */
-type Entry =
+type Entry<T extends CalendarExam> =
   | { kind: "absence"; key: string; item: AbsenceItem }
-  | { kind: "exam"; key: string; item: ExamListItem };
+  | { kind: "exam"; key: string; item: T };
 
 /**
  * Presentational: month view of exams, colored by course, and (for Dirección)
  * teacher absences. A grid from md up, a list of days with something on them
  * on phones.
  */
-export function ExamCalendar({
+export function ExamCalendar<T extends CalendarExam>({
   items,
   courses,
   today,
@@ -86,11 +92,14 @@ export function ExamCalendar({
   absences,
   onRegisterAbsence,
   onDeleteAbsence,
+  statusLabels,
 }: {
-  items: ExamListItem[];
+  items: T[];
   courses: Course[];
   today: string;
-  hrefFor: (item: ExamListItem) => string;
+  hrefFor: (item: T) => string;
+  /** Other wording for a status (families read "Nota publicada", not "Publicado"). */
+  statusLabels?: StatusLabels;
   title?: string;
   description?: string;
   /** Teacher absences shown next to the exams (Dirección's Tablero only). */
@@ -106,23 +115,24 @@ export function ExamCalendar({
   const absencesMonth = absences ? absencesInMonth(absences, month) : [];
   const absenceByDay = absencesByDay(absences ?? []);
   const weeks = monthGrid(month, today);
-  const entriesOf = (iso: string): Entry[] => [
+  const entriesOf = (iso: string): Entry<T>[] => [
     ...(absenceByDay.get(iso) ?? []).map(
-      (item): Entry => ({ kind: "absence", key: `abs-${item.absence.id}`, item }),
+      (item): Entry<T> => ({ kind: "absence", key: `abs-${item.absence.id}`, item }),
     ),
     ...(byDay.get(iso) ?? []).map(
-      (item): Entry => ({ kind: "exam", key: `ex-${item.exam.id}`, item }),
+      (item): Entry<T> => ({ kind: "exam", key: `ex-${item.exam.id}`, item }),
     ),
   ];
   const daysWithEntries = [
     ...new Set([...byDay.keys(), ...[...absenceByDay.keys()].filter((d) => monthOf(d) === month)]),
   ].sort();
-  const renderRow = (entry: Entry) =>
+  const renderRow = (entry: Entry<T>) =>
     entry.kind === "absence" ? (
       <AbsenceRow item={entry.item} onDelete={onDeleteAbsence} />
     ) : (
       <ExamRow
         item={entry.item}
+        labels={statusLabels}
         href={hrefFor(entry.item)}
         colorClass={colorOf(entry.item.course.id).solid}
       />
@@ -235,7 +245,7 @@ export function ExamCalendar({
                           key={entry.key}
                           href={hrefFor(entry.item)}
                           title={`${entry.item.course.name}: ${entry.item.exam.topic}`}
-                          aria-label={chipLabel(entry.item)}
+                          aria-label={chipLabel(entry.item, statusLabels)}
                           className={cn(
                             "flex min-h-7 items-center gap-1 rounded-md border-l-4 py-1 pr-1.5 pl-1.5 text-[13px] leading-tight font-medium focus-visible:ring-2 focus-visible:ring-primary/50 focus-visible:outline-none",
                             colorOf(entry.item.course.id).chip,
@@ -304,7 +314,12 @@ export function ExamCalendar({
           )}
         </div>
 
-        <Legend courses={courses} colorOf={colorOf} showAbsences={absences !== undefined} />
+        <Legend
+          courses={courses}
+          colorOf={colorOf}
+          showAbsences={absences !== undefined}
+          labels={statusLabels}
+        />
       </div>
     </section>
   );
@@ -314,15 +329,17 @@ function ExamRow({
   item,
   href,
   colorClass,
+  labels,
 }: {
-  item: ExamListItem;
+  item: CalendarExam;
   href: string;
   colorClass: string;
+  labels?: StatusLabels;
 }) {
   return (
     <Link
       href={href}
-      aria-label={chipLabel(item)}
+      aria-label={chipLabel(item, labels)}
       className="flex min-h-12 items-stretch overflow-hidden rounded-lg border border-border bg-card text-[15px] hover:bg-primary-tint focus-visible:ring-2 focus-visible:ring-primary/50 focus-visible:outline-none"
     >
       <span className={cn("w-1.5 shrink-0", colorClass)} aria-hidden />
@@ -331,7 +348,7 @@ function ExamRow({
         <span className="text-muted-foreground">{item.course.name}</span>
         <span className="flex items-center gap-1.5 text-foreground">
           <StatusIcon status={item.status} />
-          {STATUS_VISUAL[item.status].label}
+          {statusText(item.status, labels)}
         </span>
       </span>
     </Link>
@@ -414,10 +431,12 @@ function Legend({
   courses,
   colorOf,
   showAbsences,
+  labels,
 }: {
   courses: Course[];
   colorOf: (courseId: string) => { solid: string };
   showAbsences: boolean;
+  labels?: StatusLabels;
 }) {
   return (
     <div className="mt-5 flex flex-col gap-3 border-t border-border pt-4 text-[15px]">
@@ -435,7 +454,7 @@ function Legend({
         {(Object.keys(STATUS_VISUAL) as ExamStatus[]).map((status) => (
           <li key={status} className="flex items-center gap-1.5">
             <StatusIcon status={status} />
-            {STATUS_VISUAL[status]?.label}
+            {statusText(status, labels)}
           </li>
         ))}
         {showAbsences && (
