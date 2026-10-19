@@ -10,8 +10,8 @@ import { periodShortLabel } from "@/features/report-card/period";
 import { PeriodProgressList, ProgressLegend } from "@/features/report-card/period-progress";
 import { cn } from "@/lib/utils";
 import { AdminCalendar } from "./admin-calendar";
-import { DashboardSections } from "./dashboard/dashboard-sections";
-import { formatLongDay } from "./dashboard/dashboard-model";
+import { DashboardSections } from "@/features/metrics/dashboard-sections";
+import { formatLongDay } from "@/features/metrics/dashboard-model";
 import { useAsyncData } from "@/providers/use-async-data";
 import { pendingItems, type PendingItem } from "./pending";
 

@@ -771,6 +771,32 @@ describe("admin exams", () => {
   });
 });
 
+describe("teacher metrics", () => {
+  it("builds the dashboard from the teacher's own courses only", async () => {
+    const dashboard = await uc.teacher.getDashboard(TEACHER);
+    expect(dashboard.courses.map((c) => c.course.id).sort()).toEqual(["c-2a", "c-5a"]);
+    expect(dashboard.school.studentCount).toBe(
+      dashboard.courses.reduce((sum, c) => sum + c.studentCount, 0),
+    );
+    expect(dashboard.school.examsTaken).toBe(
+      dashboard.courses.reduce((sum, c) => sum + c.examsTaken, 0),
+    );
+    const other = await uc.teacher.getDashboard(OTHER_TEACHER);
+    expect(other.courses.map((c) => c.course.id).sort()).toEqual(["c-1b", "c-1y", "c-2b"]);
+    expect(other.courses.map((c) => c.course.id)).not.toContain("c-2a");
+  });
+
+  it("returns the same course metrics as Dirección for an assigned course", async () => {
+    const own = await uc.teacher.getCourseMetrics(TEACHER, "c-5a");
+    const admin = await uc.admin.getCourseMetrics("c-5a");
+    expect(own).toEqual(admin);
+  });
+
+  it("refuses the metrics of a course the teacher does not teach", async () => {
+    await expect(uc.teacher.getCourseMetrics(TEACHER, "c-1y")).rejects.toThrow(DomainError);
+  });
+});
+
 describe("admin dashboard", () => {
   it("summarizes every course and the whole school", async () => {
     const dashboard = await uc.admin.getDashboard();

@@ -16,8 +16,14 @@ function Tile({ label, value, helper }: { label: string; value: string; helper?:
   );
 }
 
-/** Course summary for Dirección: key figures, evolution by bimester and who is at risk. */
-export function CourseSummary({ metrics }: { metrics: CourseMetrics }) {
+/** Course summary for Dirección and the course teacher: key figures, evolution by bimester and who is at risk. */
+export function CourseSummary({
+  metrics,
+  reportCardHref,
+}: {
+  metrics: CourseMetrics;
+  reportCardHref?: (studentId: string) => string;
+}) {
   const numeric = metrics.course.gradingType === "numeric";
   const graded = metrics.passed + metrics.failed;
   const ofGraded = `de ${countLabel(graded, "alumno", "alumnos")} con notas`;
@@ -74,7 +80,7 @@ export function CourseSummary({ metrics }: { metrics: CourseMetrics }) {
             title="Alumnos con riesgo de rendir en marzo"
             description="Según las notas de los últimos bimestres."
           />
-          <RiskList students={metrics.atRisk} />
+          <RiskList students={metrics.atRisk} reportCardHref={reportCardHref} />
         </section>
       </div>
     </section>

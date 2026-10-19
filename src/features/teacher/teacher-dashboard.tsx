@@ -4,6 +4,7 @@ import { ErrorState } from "@/components/feedback/error-state";
 import { LoadingState } from "@/components/feedback/loading-state";
 import { PageBand } from "@/components/layout/page-header";
 import { CoursePicker } from "@/features/grade-sheet/course-picker";
+import { TeacherMetrics } from "./teacher-metrics";
 import { useAsyncData } from "@/providers/use-async-data";
 import { useSession } from "@/providers/session-provider";
 
@@ -43,6 +44,7 @@ export function TeacherDashboard() {
           emptyTitle="No tiene cursos asignados."
         />
       )}
+      <TeacherMetrics />
     </>
   );
 }

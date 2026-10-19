@@ -212,15 +212,28 @@ export async function loadCourseMetrics(
   );
 }
 
-export async function loadDashboard(deps: UseCaseDeps): Promise<DashboardMetrics> {
+/**
+ * Dashboard of the whole school, or of the given courses only (a teacher's own):
+ * the school aggregates are then computed over those courses' students.
+ */
+export async function loadDashboard(
+  deps: UseCaseDeps,
+  onlyCourseIds?: readonly string[],
+): Promise<DashboardMetrics> {
   const { courses, students, users, exams } = deps.repositories;
   const day = today(deps);
-  const [allCourses, allStudents, teachers, allExams] = await Promise.all([
+  const [everyCourse, everyStudent, teachers, allExams] = await Promise.all([
     courses.list(),
     students.list(),
     users.listByRole("teacher"),
     exams.listByYear(deps.year),
   ]);
+  const allCourses = onlyCourseIds
+    ? everyCourse.filter((c) => onlyCourseIds.includes(c.id))
+    : everyCourse;
+  const allStudents = onlyCourseIds
+    ? everyStudent.filter((s) => onlyCourseIds.includes(s.courseId))
+    : everyStudent;
   const metrics: StudentMetrics[] = await Promise.all(
     allStudents.map((student) =>
       studentMetrics(deps, student, allCourses.find((c) => c.id === student.courseId)?.gradingType),

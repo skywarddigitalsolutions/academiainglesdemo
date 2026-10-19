@@ -6,7 +6,14 @@ import { fullName } from "@/domain/student";
 import { riskBadge, scoreLabel } from "./dashboard-model";
 
 /** Students who may have to sit the March exam, with the plain-language reasons. */
-export function RiskList({ students }: { students: StudentMetrics[] }) {
+export function RiskList({
+  students,
+  reportCardHref,
+}: {
+  students: StudentMetrics[];
+  /** Where "Ver boletín" goes; the link is left out when the viewer has no such page. */
+  reportCardHref?: (studentId: string) => string;
+}) {
   if (students.length === 0) {
     return (
       <p className="surface-card flex items-center gap-2 px-5 py-4 text-base text-success">
@@ -30,12 +37,14 @@ export function RiskList({ students }: { students: StudentMetrics[] }) {
                   {badge.label}
                 </StatusBadge>
               </p>
-              <Link
-                href={`/admin/report-cards/${student.id}`}
-                className="inline-flex min-h-10 items-center text-sm font-medium text-primary-strong underline-offset-2 hover:underline"
-              >
-                Ver boletín
-              </Link>
+              {reportCardHref && (
+                <Link
+                  href={reportCardHref(student.id)}
+                  className="inline-flex min-h-10 items-center text-sm font-medium text-primary-strong underline-offset-2 hover:underline"
+                >
+                  Ver boletín
+                </Link>
+              )}
             </div>
             <p className="text-sm text-muted-foreground">
               {performance.gradingType === "conceptual" ? "Concepto general" : "Promedio actual"}:{" "}

@@ -33,6 +33,12 @@ import {
   type ExamDetail,
 } from "./exams";
 import {
+  loadCourseMetrics,
+  loadDashboard,
+  type CourseMetrics,
+  type DashboardMetrics,
+} from "./dashboard";
+import {
   findReview,
   isPeriodPublished,
   loadGradeSheet,
@@ -214,6 +220,21 @@ export function createTeacherUseCases(deps: UseCaseDeps) {
       const list = await notes.listByCourse(courseId, deps.year);
       await notes.markSeen(teacherId, courseId, deps.clock.now().toISOString());
       return list;
+    },
+
+    /** Metrics of the teacher's own courses only (drafts included, like the course sheet). */
+    async getDashboard(teacherId: string): Promise<DashboardMetrics> {
+      const assigned = await courses.listByTeacher(teacherId);
+      return loadDashboard(
+        deps,
+        assigned.map((c) => c.id),
+      );
+    },
+
+    /** Metrics of one assigned course, for its grade sheet page. */
+    async getCourseMetrics(teacherId: string, courseId: string): Promise<CourseMetrics> {
+      await requireAssignedCourse(teacherId, courseId);
+      return loadCourseMetrics(deps, courseId);
     },
 
     getReportCard(teacherId: string, studentId: string) {

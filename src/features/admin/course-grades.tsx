@@ -24,8 +24,8 @@ import { gradingTypeLabel } from "@/domain/course";
 import type { PeriodReview } from "@/domain/period-review";
 import type { ReportPeriod } from "@/domain/report-card";
 import { displayName, type User } from "@/domain/user";
-import { CourseSummary } from "@/features/admin/dashboard/course-summary";
-import { StudentProgressTable } from "@/features/admin/dashboard/student-progress-table";
+import { CourseSummary } from "@/features/metrics/course-summary";
+import { StudentProgressTable } from "@/features/metrics/student-progress-table";
 import { CourseGradeSheet } from "@/features/grade-sheet/course-grade-sheet";
 import { CourseNotesPanel } from "@/features/grade-sheet/course-notes";
 import { Schedule } from "@/features/grade-sheet/course-picker";
@@ -191,7 +191,14 @@ function CourseGrades({
           {name}
         </Link>
       )}
-      summary={metrics.data && <CourseSummary metrics={metrics.data} />}
+      summary={
+        metrics.data && (
+          <CourseSummary
+            metrics={metrics.data}
+            reportCardHref={(studentId) => `/admin/report-cards/${studentId}`}
+          />
+        )
+      }
       footer={
         metrics.data && (
           <section aria-label="Progreso de los alumnos" className="mt-10">

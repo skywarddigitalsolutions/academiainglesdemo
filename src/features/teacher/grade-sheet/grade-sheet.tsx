@@ -25,6 +25,7 @@ import { formatGrade } from "@/domain/grading";
 import { isLockedForTeacher } from "@/domain/period-review";
 import type { ReportPeriod } from "@/domain/report-card";
 import { fullName } from "@/domain/student";
+import { SectionHeading } from "@/components/layout/page-header";
 import { CourseGradeSheet } from "@/features/grade-sheet/course-grade-sheet";
 import { CourseNotesPanel } from "@/features/grade-sheet/course-notes";
 import { Schedule } from "@/features/grade-sheet/course-picker";
@@ -32,6 +33,8 @@ import { ReviewBanner } from "@/features/grade-sheet/review-banner";
 import { defaultSheetPeriod } from "@/features/grade-sheet/sheet-model";
 import { publishCandidates } from "@/features/grade-sheet/sheet-summary";
 import type { SheetRowView } from "@/features/grade-sheet/use-sheet-drafts";
+import { CourseSummary } from "@/features/metrics/course-summary";
+import { StudentProgressTable } from "@/features/metrics/student-progress-table";
 import { parsePeriodParam, periodLabel } from "@/features/report-card/period";
 import { errorMessage } from "@/lib/error-message";
 import { getServices } from "@/providers/services";
@@ -95,6 +98,14 @@ function TeacherGradeSheet({
   const exams = useAsyncData(`teacher-course-exams:${teacherId}:${course.id}`, (s) =>
     s.teacher.listCourseExams(teacherId, course.id),
   );
+  // Same course summary and student progress as Dirección sees, for this course only.
+  const metrics = useAsyncData(`teacher-course-metrics:${teacherId}:${course.id}`, (s) =>
+    s.teacher.getCourseMetrics(teacherId, course.id),
+  );
+  const changeSheet = (next: GradeSheet) => {
+    onSheetChange(next);
+    metrics.reload();
+  };
   const searchParams = useSearchParams();
   const period =
     parsePeriodParam(searchParams.get("periodo")) ?? defaultSheetPeriod(rows.map((r) => r.card));
@@ -104,7 +115,7 @@ function TeacherGradeSheet({
     try {
       const services = getServices();
       const result = await services.teacher.submitForApproval(teacherId, course.id, period);
-      onSheetChange(await services.teacher.getGradeSheet(teacherId, course.id));
+      changeSheet(await services.teacher.getGradeSheet(teacherId, course.id));
       const n = result.submitted.length;
       toast.success("Enviado a Dirección", {
         description: `${periodLabel(period)}: ${n === 1 ? "1 alumno" : `${n} alumnos`}. Las familias lo verán cuando Dirección lo apruebe.`,
@@ -120,7 +131,7 @@ function TeacherGradeSheet({
   async function handleWithdraw(period: ReportPeriod) {
     setBusy(true);
     try {
-      onSheetChange(await getServices().teacher.withdrawSubmission(teacherId, course.id, period));
+      changeSheet(await getServices().teacher.withdrawSubmission(teacherId, course.id, period));
       toast.success("Envío retirado", {
         description: `${periodLabel(period)}: volvió a borrador y puede editarlo.`,
       });
@@ -134,7 +145,7 @@ function TeacherGradeSheet({
   return (
     <CourseGradeSheet
       sheet={sheet}
-      onSheetChange={onSheetChange}
+      onSheetChange={changeSheet}
       eyebrow="Nota bimestral"
       breadcrumbs={[{ label: "Mis cursos", href: "/teacher" }, { label: course.name }]}
       description={
@@ -197,6 +208,18 @@ function TeacherGradeSheet({
           </>
         );
       }}
+      summary={metrics.data && <CourseSummary metrics={metrics.data} />}
+      footer={
+        metrics.data && (
+          <section aria-label="Progreso de los alumnos" className="mt-10">
+            <SectionHeading
+              title="Progreso de los alumnos"
+              description="El cambio compara el último bimestre con nota contra el anterior."
+            />
+            <StudentProgressTable metrics={metrics.data} />
+          </section>
+        )
+      }
       aside={
         notes.data ? (
           <CourseNotesPanel
