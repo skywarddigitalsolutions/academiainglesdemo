@@ -1,5 +1,6 @@
 "use client";
 
+import type { GradingType } from "@/domain/grading";
 import { useRef, useState, type KeyboardEvent, type ReactNode } from "react";
 import {
   CheckCircle2,
@@ -228,8 +229,10 @@ export function PeriodSummary({
   onFilterChange,
   publishHint = false,
   hiddenDirty = 0,
+  gradingType,
 }: {
   period: ReportPeriod;
+  gradingType: GradingType;
   breakdown: PeriodBreakdown;
   filter: SheetFilter;
   onFilterChange: (filter: SheetFilter) => void;
@@ -294,7 +297,7 @@ export function PeriodSummary({
             {sentence}
           </p>
         </div>
-        <LowGradeHint />
+        <LowGradeHint gradingType={gradingType} />
       </div>
 
       {b.total > 0 && (

@@ -3,7 +3,7 @@
 import type { KeyboardEvent, ReactNode } from "react";
 import type { GradeSheetRow } from "@/application/grade-sheet";
 import type { Course } from "@/domain/course";
-import { CONCEPTUAL_SCALE } from "@/domain/grading";
+import { CONCEPTUAL_SCALE, type GradingType } from "@/domain/grading";
 import {
   CLOSING_RESULTS,
   FINAL_EXAM_MODALITIES,
@@ -523,11 +523,12 @@ function StudentName({ name, dirty }: { name: string; dirty: boolean }) {
 }
 
 /** Low-grade legend shown above the sheet. */
-export function LowGradeHint() {
+export function LowGradeHint({ gradingType }: { gradingType: GradingType }) {
   return (
     <p className="flex items-center gap-2 text-xs text-muted-foreground">
       <span className="size-3 rounded-[3px] border border-danger-border bg-danger-soft" aria-hidden />
-      Menor a 6: solo referencia, la decisión es del docente
+      {gradingType === "conceptual" ? "Desaprobado" : "Menor a 6"}: solo referencia, la decisión es
+      del docente
     </p>
   );
 }

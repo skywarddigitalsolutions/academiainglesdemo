@@ -257,6 +257,7 @@ export function CourseGradeSheet({
           )}
           <PeriodSummary
             period={period}
+            gradingType={course.gradingType}
             breakdown={breakdown}
             filter={filter}
             onFilterChange={setFilter}
