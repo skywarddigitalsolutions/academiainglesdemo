@@ -1,5 +1,5 @@
 import type { CourseMetrics } from "@/application/dashboard";
-import { formatPercent, passFailSegments } from "./dashboard-model";
+import { countLabel, formatPercent, passFailSegments } from "./dashboard-model";
 
 function Legend({ className, children }: { className: string; children: string }) {
   return (
@@ -12,8 +12,8 @@ function Legend({ className, children }: { className: string; children: string }
 
 function PassFailRow({ metrics }: { metrics: CourseMetrics }) {
   const seg = passFailSegments(metrics);
-  const passed = `${metrics.passed} aprobados (${formatPercent(seg.passed)})`;
-  const failed = `${metrics.failed} desaprobados (${formatPercent(seg.failed)})`;
+  const passed = `${countLabel(metrics.passed, "aprobado", "aprobados")} (${formatPercent(seg.passed)})`;
+  const failed = `${countLabel(metrics.failed, "desaprobado", "desaprobados")} (${formatPercent(seg.failed)})`;
   const ungraded = `${metrics.ungraded} sin notas`;
   return (
     <li className="py-3 first:pt-0 last:pb-0">

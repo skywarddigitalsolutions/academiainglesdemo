@@ -10,7 +10,7 @@ import {
 } from "lucide-react";
 import type { SchoolMetrics } from "@/application/dashboard";
 import { cn } from "@/lib/utils";
-import { formatPercent } from "./dashboard-model";
+import { countLabel, formatPercent } from "./dashboard-model";
 
 type KpiTone = "neutral" | "success" | "warning" | "danger";
 
@@ -48,7 +48,7 @@ function kpis(school: SchoolMetrics): Kpi[] {
       tone: "success",
       label: "Aprobados",
       value: formatPercent(school.passRate),
-      helper: `${school.passed} de ${school.passed + school.failed} alumnos con notas`,
+      helper: `${school.passed} de ${countLabel(school.passed + school.failed, "alumno", "alumnos")} con notas`,
     },
     {
       id: "failed",
@@ -56,7 +56,7 @@ function kpis(school: SchoolMetrics): Kpi[] {
       tone: school.failed > 0 ? "danger" : "success",
       label: "Desaprobados",
       value: formatPercent(school.failRate),
-      helper: `${school.failed} alumnos con promedio menor a 6`,
+      helper: `${countLabel(school.failed, "alumno", "alumnos")} con promedio menor a 6`,
     },
     {
       id: "risk",

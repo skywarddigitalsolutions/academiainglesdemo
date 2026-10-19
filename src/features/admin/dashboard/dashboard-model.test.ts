@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type { CourseMetrics, StudentMetrics } from "@/application/dashboard";
 import {
+  countLabel,
   formatChange,
   formatLongDay,
   formatPercent,
@@ -106,6 +107,20 @@ describe("rankCourses", () => {
     expect(rankCourses(list, "average")).toEqual({ best: [], worst: [] });
     const ties = [course("a"), course("b")];
     expect(rankCourses(ties, "average")).toEqual({ best: [], worst: [] });
+  });
+  it("marks nothing when the spread is too small to matter", () => {
+    const close = [course("a", { attendanceRate: 90.8 }), course("b", { attendanceRate: 90.6 })];
+    expect(rankCourses(close, "attendanceRate")).toEqual({ best: [], worst: [] });
+    const near = [course("a", { average: 8.2 }), course("b", { average: 8.1 })];
+    expect(rankCourses(near, "average")).toEqual({ best: [], worst: [] });
+  });
+});
+
+describe("countLabel", () => {
+  it("agrees the noun with the count", () => {
+    expect(countLabel(1, "alumno", "alumnos")).toBe("1 alumno");
+    expect(countLabel(0, "alumno", "alumnos")).toBe("0 alumnos");
+    expect(countLabel(3, "desaprobado", "desaprobados")).toBe("3 desaprobados");
   });
 });
 

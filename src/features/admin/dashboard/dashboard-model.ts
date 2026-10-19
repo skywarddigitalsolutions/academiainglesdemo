@@ -82,6 +82,22 @@ const LOWER_IS_BETTER: ReadonlySet<ComparisonKey> = new Set([
   "atRisk",
 ]);
 
+/** Smallest gap between best and worst worth highlighting, in the column's own unit. */
+const MIN_SPREAD: Record<ComparisonKey, number> = {
+  average: 0.25,
+  passRate: 2,
+  failRate: 2,
+  attendanceRate: 2,
+  absencesPerStudent: 0.5,
+  examsTaken: 1,
+  atRisk: 1,
+};
+
+/** 1 -> "1 alumno"; otherwise the plural form. */
+export function countLabel(count: number, singular: string, plural: string): string {
+  return `${count} ${count === 1 ? singular : plural}`;
+}
+
 function comparisonValue(course: CourseMetrics, key: ComparisonKey): number | null {
   return key === "atRisk" ? course.atRisk.length : course[key];
 }
@@ -96,7 +112,7 @@ export function rankCourses(
     .filter((v): v is { id: string; value: number } => v.value !== null);
   const min = Math.min(...values.map((v) => v.value));
   const max = Math.max(...values.map((v) => v.value));
-  if (values.length < 2 || min === max) return { best: [], worst: [] };
+  if (values.length < 2 || max - min < MIN_SPREAD[key]) return { best: [], worst: [] };
   const [bestValue, worstValue] = LOWER_IS_BETTER.has(key) ? [min, max] : [max, min];
   const idsAt = (target: number) => values.filter((v) => v.value === target).map((v) => v.id);
   return { best: idsAt(bestValue), worst: idsAt(worstValue) };

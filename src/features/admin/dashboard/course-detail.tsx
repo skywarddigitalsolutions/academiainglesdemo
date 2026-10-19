@@ -4,7 +4,7 @@ import { useState } from "react";
 import type { CourseMetrics } from "@/application/dashboard";
 import { SectionHeading } from "@/components/layout/page-header";
 import { BimesterChart } from "./bimester-chart";
-import { formatPercent } from "./dashboard-model";
+import { formatPercent, scoreLabel } from "./dashboard-model";
 import { RiskList } from "./risk-list";
 import { SegmentedControl } from "./segmented-control";
 import { StudentProgressTable } from "./student-progress-table";
@@ -27,7 +27,7 @@ function Detail({ metrics }: { metrics: CourseMetrics }) {
       <ul className="grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-5">
         <MiniKpi
           label="Promedio del curso"
-          value={metrics.average === null ? "—" : String(metrics.average).replace(".", ",")}
+          value={scoreLabel(metrics.average, metrics.course.gradingType)}
         />
         <MiniKpi
           label="Aprobados"

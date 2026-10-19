@@ -4,7 +4,7 @@ import type { CourseMetrics } from "@/application/dashboard";
 import { SectionHeading } from "@/components/layout/page-header";
 import { displayName } from "@/domain/user";
 import { cn } from "@/lib/utils";
-import { formatPercent, rankCourses, type ComparisonKey } from "./dashboard-model";
+import { formatPercent, rankCourses, scoreLabel, type ComparisonKey } from "./dashboard-model";
 
 const TH =
   "h-10 px-3 text-left text-[11px] font-semibold tracking-[0.05em] text-navy/75 uppercase";
@@ -60,7 +60,11 @@ function Ranked({
 
 function cells(metrics: CourseMetrics): { key: ComparisonKey; label: string; text: string }[] {
   return [
-    { key: "average", label: "Promedio", text: decimal(metrics.average) },
+    {
+      key: "average",
+      label: "Promedio",
+      text: scoreLabel(metrics.average, metrics.course.gradingType),
+    },
     { key: "passRate", label: "Aprobados", text: formatPercent(metrics.passRate) },
     { key: "failRate", label: "Desaprobados", text: formatPercent(metrics.failRate) },
     { key: "attendanceRate", label: "Asistencia est.", text: formatPercent(metrics.attendanceRate) },
