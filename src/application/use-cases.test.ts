@@ -749,6 +749,58 @@ describe("admin exams", () => {
   });
 });
 
+describe("admin dashboard", () => {
+  it("summarizes every course and the whole school", async () => {
+    const dashboard = await uc.admin.getDashboard();
+    expect(dashboard.year).toBe(2026);
+    expect(dashboard.today).toBe("2026-10-15");
+    expect(dashboard.courses).toHaveLength(3);
+    for (const course of dashboard.courses) {
+      expect(course.passed + course.failed + course.ungraded).toBe(course.studentCount);
+      expect(course.students).toHaveLength(course.studentCount);
+      expect(course.bimesterAverages.map((b) => b.bimester)).toEqual([1, 2, 3, 4]);
+    }
+    const { school } = dashboard;
+    expect(school.studentCount).toBe(
+      dashboard.courses.reduce((sum, c) => sum + c.studentCount, 0),
+    );
+    expect(school.passed + school.failed + school.ungraded).toBe(school.studentCount);
+    expect(school.atRiskHigh).toBe(
+      dashboard.courses.reduce(
+        (sum, c) => sum + c.atRisk.filter((s) => s.performance.risk.level === "high").length,
+        0,
+      ),
+    );
+  });
+
+  it("lists students at risk with their reasons", async () => {
+    const dashboard = await uc.admin.getDashboard();
+    const course = dashboard.courses.find((c) => c.course.id === "c-5a")!;
+    const bruno = course.atRisk.find((s) => s.student.id === "s-10");
+    expect(bruno?.performance.risk.level).toBe("high");
+    expect(bruno?.performance.risk.reasons.length).toBeGreaterThan(0);
+    expect(course.atRisk[0].performance.risk.level).toBe("high");
+  });
+
+  it("counts the exams taken and upcoming per course", async () => {
+    const dashboard = await uc.admin.getDashboard();
+    const agenda = await uc.admin.listExams();
+    for (const course of dashboard.courses) {
+      const count = agenda.items.filter((i) => i.course.id === course.course.id).length;
+      expect(course.examsTaken + course.examsUpcoming).toBe(count);
+    }
+    expect(dashboard.school.examsTaken).toBe(
+      dashboard.courses.reduce((sum, c) => sum + c.examsTaken, 0),
+    );
+  });
+
+  it("includes the course teachers", async () => {
+    const dashboard = await uc.admin.getDashboard();
+    const course = dashboard.courses.find((c) => c.course.id === "c-5a")!;
+    expect(course.teachers.map((t) => t.id)).toContain(TEACHER);
+  });
+});
+
 describe("parent exams", () => {
   it("lists the upcoming exams of their children only", async () => {
     const items = await uc.parent.listUpcomingExams(PARENT);

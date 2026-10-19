@@ -17,6 +17,7 @@ import {
 } from "@/domain/student";
 import { displayName, type User } from "@/domain/user";
 import { DEMO_PASSWORD } from "./demo-constants";
+import { loadDashboard, type DashboardMetrics } from "./dashboard";
 import { loadExamAgenda, loadExamDetail, requireExam, type ExamAgenda, type ExamDetail } from "./exams";
 import {
   findReview,
@@ -195,6 +196,11 @@ export function createAdminUseCases(deps: UseCaseDeps) {
           courses: allCourses.length,
         },
       };
+    },
+
+    /** Read-only metrics for the Tablero (drafts included). */
+    getDashboard(): Promise<DashboardMetrics> {
+      return loadDashboard(deps);
     },
 
     getReportCard(studentId: string) {
