@@ -1,28 +1,13 @@
 import type { DashboardMetrics } from "@/application/dashboard";
-import type { ExamAgenda } from "@/application/exams";
-import { ErrorState } from "@/components/feedback/error-state";
-import { LoadingState } from "@/components/feedback/loading-state";
 import { SectionHeading } from "@/components/layout/page-header";
-import { ExamCalendar } from "@/features/exams/exam-calendar";
+import { AdminCalendar } from "../admin-calendar";
 import { BimesterChart } from "./bimester-chart";
 import { CourseComparison } from "./course-comparison";
 import { KpiRow } from "./kpi-row";
 import { PassFailByCourse } from "./pass-fail-by-course";
 
-export interface DashboardExams {
-  agenda: ExamAgenda | null;
-  loading: boolean;
-  error: string | null;
-}
-
 /** Academic part of the Tablero, top to bottom. Add new sections here. */
-export function DashboardSections({
-  metrics,
-  exams,
-}: {
-  metrics: DashboardMetrics;
-  exams: DashboardExams;
-}) {
+export function DashboardSections({ metrics }: { metrics: DashboardMetrics }) {
   return (
     <div className="flex flex-col gap-10">
       <KpiRow school={metrics.school} />
@@ -50,18 +35,7 @@ export function DashboardSections({
 
       <CourseComparison courses={metrics.courses} />
 
-      {exams.loading && <LoadingState variant="cards" />}
-      {exams.error && <ErrorState message={exams.error} />}
-      {exams.agenda && (
-        <ExamCalendar
-          title="Calendario de exámenes"
-          description="Todos los exámenes de todos los cursos."
-          items={exams.agenda.items}
-          courses={exams.agenda.courses}
-          today={exams.agenda.today}
-          hrefFor={(item) => `/admin/exams/${item.exam.id}`}
-        />
-      )}
+      <AdminCalendar />
     </div>
   );
 }

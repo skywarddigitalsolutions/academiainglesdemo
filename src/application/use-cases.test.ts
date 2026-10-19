@@ -871,6 +871,96 @@ describe("admin dashboard", () => {
   });
 });
 
+describe("admin teacher absences", () => {
+  it("lists the seeded absences, earliest first", async () => {
+    const absences = await uc.admin.listTeacherAbsences();
+    expect(absences.length).toBeGreaterThanOrEqual(2);
+    const starts = absences.map((a) => a.from);
+    expect(starts).toEqual([...starts].sort());
+    expect(absences.every((a) => a.teacherId.startsWith("u-teacher"))).toBe(true);
+  });
+
+  it("registers an absence for an existing teacher", async () => {
+    const saved = await uc.admin.saveTeacherAbsence({
+      teacherId: TEACHER,
+      from: "2026-11-03",
+      to: "2026-11-04",
+      reason: "  Trámite personal ",
+    });
+    expect(saved).toMatchObject({
+      teacherId: TEACHER,
+      from: "2026-11-03",
+      to: "2026-11-04",
+      reason: "Trámite personal",
+      createdAt: NOW.toISOString(),
+    });
+    expect(await uc.admin.listTeacherAbsences()).toContainEqual(saved);
+  });
+
+  it("edits an absence keeping its creation time", async () => {
+    const [first] = await uc.admin.listTeacherAbsences();
+    const edited = await uc.admin.saveTeacherAbsence({
+      id: first.id,
+      teacherId: first.teacherId,
+      from: first.from,
+      to: first.to,
+      reason: "Otro motivo",
+    });
+    expect(edited).toMatchObject({ id: first.id, reason: "Otro motivo", createdAt: first.createdAt });
+  });
+
+  it("rejects an unknown teacher, a non-teacher and invalid data", async () => {
+    const base = { from: "2026-11-03", to: "2026-11-03", reason: "x" };
+    await expect(uc.admin.saveTeacherAbsence({ ...base, teacherId: "u-ghost" })).rejects.toThrow(
+      DomainError,
+    );
+    await expect(uc.admin.saveTeacherAbsence({ ...base, teacherId: PARENT })).rejects.toThrow(
+      DomainError,
+    );
+    await expect(
+      uc.admin.saveTeacherAbsence({ ...base, teacherId: TEACHER, to: "2026-11-02" }),
+    ).rejects.toThrow(DomainError);
+    await expect(
+      uc.admin.saveTeacherAbsence({ ...base, teacherId: TEACHER, id: "abs-ghost" }),
+    ).rejects.toThrow(DomainError);
+  });
+
+  it("deletes an absence", async () => {
+    const [first] = await uc.admin.listTeacherAbsences();
+    await uc.admin.deleteTeacherAbsence(first.id);
+    expect((await uc.admin.listTeacherAbsences()).map((a) => a.id)).not.toContain(first.id);
+    await expect(uc.admin.deleteTeacherAbsence(first.id)).rejects.toThrow(DomainError);
+  });
+
+  it("drops the absences of a deleted teacher", async () => {
+    const teacher = await uc.admin.saveTeacher({
+      firstName: "Nora",
+      lastName: "Quiroga",
+      username: "nquiroga",
+      password: "demo123",
+      email: "nquiroga@example.com",
+      courseIds: [],
+    });
+    await uc.admin.saveTeacherAbsence({
+      teacherId: teacher.id,
+      from: "2026-11-03",
+      to: "2026-11-03",
+      reason: "Licencia",
+    });
+    await uc.admin.deleteTeacher(teacher.id);
+    const left = await uc.admin.listTeacherAbsences();
+    expect(left.some((a) => a.teacherId === teacher.id)).toBe(false);
+  });
+
+  it("is not exposed to teachers or parents", () => {
+    for (const role of [uc.teacher, uc.parent]) {
+      expect(role).not.toHaveProperty("listTeacherAbsences");
+      expect(role).not.toHaveProperty("saveTeacherAbsence");
+      expect(role).not.toHaveProperty("deleteTeacherAbsence");
+    }
+  });
+});
+
 describe("parent exams", () => {
   it("lists the upcoming exams of their children only", async () => {
     const items = await uc.parent.listUpcomingExams(PARENT);

@@ -1,5 +1,7 @@
 import type { ExamListItem } from "@/application/exams";
 import { addDays } from "@/domain/exam";
+import { absenceDays, type TeacherAbsence } from "@/domain/teacher-absence";
+import { formatDay } from "@/lib/format";
 
 /*
  * Pure model of the monthly exam calendar. Months are "yyyy-mm" strings and
@@ -99,4 +101,38 @@ export function itemsInMonth(items: ExamListItem[], month: string): ExamListItem
 /** Position of each course in the palette, stable for the given order. */
 export function courseColorIndex(courseIds: string[]): Map<string, number> {
   return new Map(courseIds.map((id, index) => [id, index]));
+}
+
+/** A teacher absence with the teacher's name, ready for the calendar. */
+export interface AbsenceItem {
+  absence: TeacherAbsence;
+  teacherName: string;
+}
+
+/** Absences by calendar day: a multi-day absence appears on every day it covers. */
+export function absencesByDay(items: AbsenceItem[]): Map<string, AbsenceItem[]> {
+  const byDay = new Map<string, AbsenceItem[]>();
+  for (const item of items) {
+    for (const day of absenceDays(item.absence)) {
+      const list = byDay.get(day) ?? [];
+      list.push(item);
+      byDay.set(day, list);
+    }
+  }
+  for (const list of byDay.values()) {
+    list.sort((a, b) => a.teacherName.localeCompare(b.teacherName, "es"));
+  }
+  return byDay;
+}
+
+/** Absences that cover at least one day of the month. */
+export function absencesInMonth(items: AbsenceItem[], month: string): AbsenceItem[] {
+  const first = `${month}-01`;
+  const last = addDays(`${shiftMonth(month, 1)}-01`, -1);
+  return items.filter((i) => i.absence.from <= last && i.absence.to >= first);
+}
+
+/** "21/10/2026" or "del 27/10/2026 al 28/10/2026". */
+export function absenceRangeText(from: string, to: string): string {
+  return from === to ? formatDay(from) : `del ${formatDay(from)} al ${formatDay(to)}`;
 }

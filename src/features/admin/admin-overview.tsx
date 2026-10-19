@@ -25,7 +25,6 @@ import { pendingItems, type PendingItem } from "./pending";
 export function AdminOverview() {
   const overview = useAsyncData("admin-overview", (s) => s.admin.getOverview());
   const dashboard = useAsyncData("admin-dashboard", (s) => s.admin.getDashboard());
-  const exams = useAsyncData("admin-exams", (s) => s.admin.listExams());
   const data = overview.data;
   const metrics = dashboard.data;
 
@@ -54,10 +53,7 @@ export function AdminOverview() {
         {dashboard.loading && <LoadingState variant="cards" />}
         {dashboard.error && <ErrorState message={dashboard.error} />}
         {metrics && (
-          <DashboardSections
-            metrics={metrics}
-            exams={{ agenda: exams.data, loading: exams.loading, error: exams.error }}
-          />
+          <DashboardSections metrics={metrics} />
         )}
 
         {overview.loading && !dashboard.loading && <LoadingState variant="cards" />}

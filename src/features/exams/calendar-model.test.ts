@@ -3,6 +3,9 @@ import type { ExamListItem } from "@/application/exams";
 import type { Course } from "@/domain/course";
 import type { Exam } from "@/domain/exam";
 import {
+  absenceRangeText,
+  absencesByDay,
+  absencesInMonth,
   courseColorIndex,
   initialMonth,
   itemsByDay,
@@ -11,6 +14,7 @@ import {
   monthOf,
   monthTitle,
   shiftMonth,
+  type AbsenceItem,
 } from "./calendar-model";
 
 function item(id: string, date: string, courseName: string): ExamListItem {
@@ -97,5 +101,48 @@ describe("exam grouping", () => {
     expect(map.get("c-b")).toBe(0);
     expect(map.get("c-a")).toBe(1);
     expect(map.get("c-c")).toBe(2);
+  });
+});
+
+describe("teacher absences", () => {
+  const absence = (id: string, teacherName: string, from: string, to: string): AbsenceItem => ({
+    absence: { id, teacherId: `t-${id}`, from, to, reason: "x", createdAt: "" },
+    teacherName,
+  });
+  const list = [
+    absence("a", "Javier Peralta", "2026-10-27", "2026-10-29"),
+    absence("b", "Laura Benítez", "2026-10-28", "2026-10-28"),
+    absence("c", "Ana Soto", "2026-10-30", "2026-11-02"),
+  ];
+
+  it("places a multi-day absence on every day it covers", () => {
+    const byDay = absencesByDay(list);
+    expect([...byDay.keys()].sort()).toEqual([
+      "2026-10-27",
+      "2026-10-28",
+      "2026-10-29",
+      "2026-10-30",
+      "2026-10-31",
+      "2026-11-01",
+      "2026-11-02",
+    ]);
+    expect(byDay.get("2026-10-27")?.map((i) => i.absence.id)).toEqual(["a"]);
+  });
+
+  it("sorts each day by teacher name", () => {
+    const names = absencesByDay(list).get("2026-10-28")?.map((i) => i.teacherName);
+    expect(names).toEqual(["Javier Peralta", "Laura Benítez"]);
+  });
+
+  it("keeps the absences that overlap a month", () => {
+    expect(absencesInMonth(list, "2026-11").map((i) => i.absence.id)).toEqual(["c"]);
+    expect(absencesInMonth(list, "2026-10").map((i) => i.absence.id)).toEqual(["a", "b", "c"]);
+    expect(absencesInMonth(list, "2026-09")).toEqual([]);
+    expect(absencesInMonth(list, "2026-12")).toEqual([]);
+  });
+
+  it("writes the date range", () => {
+    expect(absenceRangeText("2026-10-21", "2026-10-21")).toBe("21/10/2026");
+    expect(absenceRangeText("2026-10-27", "2026-10-28")).toBe("del 27/10/2026 al 28/10/2026");
   });
 });

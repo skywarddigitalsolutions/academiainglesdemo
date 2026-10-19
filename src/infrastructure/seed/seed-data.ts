@@ -1,6 +1,7 @@
 import { DEMO_PASSWORD } from "@/application/demo-constants";
 import type { Course } from "@/domain/course";
 import { createCourseNote, type CourseNote } from "@/domain/course-note";
+import { createTeacherAbsence, type TeacherAbsence } from "@/domain/teacher-absence";
 import { addDays, type Exam, type ExamType } from "@/domain/exam";
 import { returnReview, submitReview, type PeriodReview } from "@/domain/period-review";
 import type { ConceptualGrade, GradeValue, GradingType } from "@/domain/grading";
@@ -26,6 +27,7 @@ export interface SeedData {
   reviews: PeriodReview[];
   notes: CourseNote[];
   exams: Exam[];
+  teacherAbsences: TeacherAbsence[];
 }
 
 export { DEMO_PASSWORD };
@@ -295,6 +297,7 @@ export function buildSeed(year: number): SeedData {
   const { reviews, notes } = buildReviews(year, reportCards);
   return {
     exams: buildExams(year),
+    teacherAbsences: buildTeacherAbsences(year),
     users: USERS.map((u) => ({ ...u })),
     courses: COURSES.map((c) => ({ ...c, teacherIds: [...c.teacherIds] })),
     students,
@@ -302,6 +305,18 @@ export function buildSeed(year: number): SeedData {
     reviews,
     notes,
   };
+}
+
+/** Two upcoming absences and one later in the term, so the Tablero calendar has something to show. */
+function buildTeacherAbsences(year: number): TeacherAbsence[] {
+  const now = new Date(`${year}-10-14T12:00:00.000Z`);
+  const absence = (id: string, teacherId: string, from: string, to: string, reason: string) =>
+    createTeacherAbsence({ id, teacherId, from: `${year}-${from}`, to: `${year}-${to}`, reason, now });
+  return [
+    absence("abs-seed-1", "u-teacher-1", "10-21", "10-21", "Licencia médica"),
+    absence("abs-seed-2", "u-teacher-2", "10-27", "10-28", "Capacitación"),
+    absence("abs-seed-3", "u-teacher-1", "11-06", "11-06", "Trámite personal"),
+  ];
 }
 
 const RETURN_NOTE =

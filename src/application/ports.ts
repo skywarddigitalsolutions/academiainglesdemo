@@ -1,5 +1,6 @@
 import type { Course } from "@/domain/course";
 import type { CourseNote } from "@/domain/course-note";
+import type { TeacherAbsence } from "@/domain/teacher-absence";
 import type { Exam } from "@/domain/exam";
 import type { PeriodReview } from "@/domain/period-review";
 import type { ReportCard } from "@/domain/report-card";
@@ -92,6 +93,15 @@ export interface IdGenerator {
   next(prefix: string): string;
 }
 
+/** Days a teacher will not be at school, registered by Dirección. */
+export interface TeacherAbsenceRepository {
+  /** Earliest first. */
+  list(): Promise<TeacherAbsence[]>;
+  getById(id: string): Promise<TeacherAbsence | null>;
+  save(absence: TeacherAbsence): Promise<void>;
+  delete(id: string): Promise<void>;
+}
+
 export interface Repositories {
   students: StudentRepository;
   courses: CourseRepository;
@@ -100,6 +110,7 @@ export interface Repositories {
   reviews: PeriodReviewRepository;
   notes: CourseNoteRepository;
   exams: ExamRepository;
+  teacherAbsences: TeacherAbsenceRepository;
   session: SessionStore;
   demoData: DemoDataManager;
 }

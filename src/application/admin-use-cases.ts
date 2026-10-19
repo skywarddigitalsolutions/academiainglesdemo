@@ -7,6 +7,7 @@ import {
   type ReportPeriod,
 } from "@/domain/report-card";
 import { DomainError } from "@/domain/errors";
+import { createTeacherAbsence, type TeacherAbsence } from "@/domain/teacher-absence";
 import {
   fullName,
   linkGuardian,
@@ -76,6 +77,15 @@ export interface CourseInput {
   nextCourseName: string;
 }
 
+export interface TeacherAbsenceInput {
+  /** Present when editing an existing absence. */
+  id?: string;
+  teacherId: string;
+  from: string;
+  to: string;
+  reason: string;
+}
+
 export interface TeacherInput {
   id?: string;
   firstName: string;
@@ -106,7 +116,8 @@ export interface ParentListItem {
 }
 
 export function createAdminUseCases(deps: UseCaseDeps) {
-  const { courses, students, users, reportCards, reviews, notes, exams } = deps.repositories;
+  const { courses, students, users, reportCards, reviews, notes, exams, teacherAbsences } =
+    deps.repositories;
 
   async function requirePendingReview(courseId: string, period: ReportPeriod) {
     const review = await findReview(deps, courseId, period);
@@ -422,7 +433,37 @@ export function createAdminUseCases(deps: UseCaseDeps) {
           "No se puede eliminar un docente con cursos asignados. Quítele los cursos primero.",
         );
       }
+      for (const absence of await teacherAbsences.list()) {
+        if (absence.teacherId === teacherId) await teacherAbsences.delete(absence.id);
+      }
       await users.delete(teacherId);
+    },
+
+    async listTeacherAbsences(): Promise<TeacherAbsence[]> {
+      return teacherAbsences.list();
+    },
+
+    /** Registers an absence, or edits one when `id` is given. */
+    async saveTeacherAbsence(input: TeacherAbsenceInput): Promise<TeacherAbsence> {
+      await requireTeacher(input.teacherId);
+      const existing = input.id ? await teacherAbsences.getById(input.id) : null;
+      if (input.id && !existing) throw notFound("la ausencia");
+      const created = createTeacherAbsence({
+        id: existing?.id ?? deps.ids.next("abs"),
+        teacherId: input.teacherId,
+        from: input.from,
+        to: input.to,
+        reason: input.reason,
+        now: deps.clock.now(),
+      });
+      const absence = existing ? { ...created, createdAt: existing.createdAt } : created;
+      await teacherAbsences.save(absence);
+      return absence;
+    },
+
+    async deleteTeacherAbsence(absenceId: string): Promise<void> {
+      if (!(await teacherAbsences.getById(absenceId))) throw notFound("la ausencia");
+      await teacherAbsences.delete(absenceId);
     },
 
     async listStudents(): Promise<StudentListItem[]> {

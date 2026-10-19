@@ -129,6 +129,19 @@ describe("local storage repositories", () => {
     expect((await repos.exams.getById(first.id))?.topic).toBe(first.topic);
   });
 
+  it("lists, saves and deletes teacher absences, and restores them on reset", async () => {
+    const seeded = await repos.teacherAbsences.list();
+    expect(seeded.length).toBeGreaterThan(0);
+    const starts = seeded.map((a) => a.from);
+    expect(starts).toEqual([...starts].sort());
+    await repos.teacherAbsences.save({ ...seeded[0], reason: "Changed" });
+    expect((await repos.teacherAbsences.getById(seeded[0].id))?.reason).toBe("Changed");
+    await repos.teacherAbsences.delete(seeded[0].id);
+    expect(await repos.teacherAbsences.getById(seeded[0].id)).toBeNull();
+    await repos.demoData.reset();
+    expect((await repos.teacherAbsences.getById(seeded[0].id))?.reason).toBe(seeded[0].reason);
+  });
+
   it("restores the seed when the demo is reset", async () => {
     const student = (await repos.students.list())[0];
     await repos.students.delete(student.id);

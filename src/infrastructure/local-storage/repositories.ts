@@ -1,5 +1,6 @@
 import type {
   CourseNoteRepository,
+  TeacherAbsenceRepository,
   CourseRepository,
   DemoDataManager,
   ExamRepository,
@@ -12,6 +13,7 @@ import type {
 } from "@/application/ports";
 import type { Course } from "@/domain/course";
 import type { CourseNote } from "@/domain/course-note";
+import type { TeacherAbsence } from "@/domain/teacher-absence";
 import type { Exam } from "@/domain/exam";
 import type { PeriodReview } from "@/domain/period-review";
 import type { ReportCard } from "@/domain/report-card";
@@ -36,6 +38,7 @@ const KEYS = {
   notes: `${STORAGE_PREFIX}${DATA_VERSION}course-notes`,
   noteReads: `${STORAGE_PREFIX}${DATA_VERSION}course-note-reads`,
   exams: `${STORAGE_PREFIX}${DATA_VERSION}exams`,
+  teacherAbsences: `${STORAGE_PREFIX}${DATA_VERSION}teacher-absences`,
   session: `${STORAGE_PREFIX}session`,
 } as const;
 
@@ -197,6 +200,25 @@ class LocalStorageExamRepository implements ExamRepository {
   }
 }
 
+class LocalStorageTeacherAbsenceRepository implements TeacherAbsenceRepository {
+  constructor(private readonly items: LocalStorageCollection<TeacherAbsence>) {}
+
+  async list() {
+    return this.items
+      .all()
+      .sort((a, b) => a.from.localeCompare(b.from) || a.id.localeCompare(b.id));
+  }
+  async getById(id: string) {
+    return this.items.find((a) => a.id === id);
+  }
+  async save(absence: TeacherAbsence) {
+    this.items.upsert(absence);
+  }
+  async delete(id: string) {
+    this.items.remove(id);
+  }
+}
+
 class LocalStorageSessionStore implements SessionStore {
   private memory: Session | null = null;
 
@@ -253,6 +275,11 @@ export function createLocalStorageRepositories(
   const notes = new LocalStorageCollection(storage, KEYS.notes, () => seed().notes);
   const noteReads = new LocalStorageCollection<NoteRead>(storage, KEYS.noteReads, () => []);
   const exams = new LocalStorageCollection(storage, KEYS.exams, () => seed().exams);
+  const teacherAbsences = new LocalStorageCollection(
+    storage,
+    KEYS.teacherAbsences,
+    () => seed().teacherAbsences,
+  );
 
   const demoData: DemoDataManager = {
     async reset() {
@@ -265,6 +292,7 @@ export function createLocalStorageRepositories(
         notes,
         noteReads,
         exams,
+        teacherAbsences,
       ]) {
         collection.reset();
       }
@@ -279,6 +307,7 @@ export function createLocalStorageRepositories(
     reviews: new LocalStoragePeriodReviewRepository(reviews),
     notes: new LocalStorageCourseNoteRepository(notes, noteReads),
     exams: new LocalStorageExamRepository(exams),
+    teacherAbsences: new LocalStorageTeacherAbsenceRepository(teacherAbsences),
     session: new LocalStorageSessionStore(storage),
     demoData,
   };
