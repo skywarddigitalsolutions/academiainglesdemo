@@ -2,26 +2,20 @@
 
 import Link from "next/link";
 import { ArrowRight, CheckCircle2 } from "lucide-react";
-import type { CourseOverview } from "@/application/admin-use-cases";
 import type { PeriodProgress } from "@/application/progress";
 import { ErrorState } from "@/components/feedback/error-state";
 import { LoadingState } from "@/components/feedback/loading-state";
 import { PageBand, SectionHeading } from "@/components/layout/page-header";
-import { gradingTypeLabel } from "@/domain/course";
-import { displayName } from "@/domain/user";
 import { periodShortLabel } from "@/features/report-card/period";
-import {
-  PeriodProgressList,
-  ProgressBar,
-  ProgressLegend,
-} from "@/features/report-card/period-progress";
+import { PeriodProgressList, ProgressLegend } from "@/features/report-card/period-progress";
 import { cn } from "@/lib/utils";
+import { AdminCalendar } from "./admin-calendar";
 import { DashboardSections } from "./dashboard/dashboard-sections";
 import { formatLongDay } from "./dashboard/dashboard-model";
 import { useAsyncData } from "@/providers/use-async-data";
 import { pendingItems, type PendingItem } from "./pending";
 
-/** Container: Dirección's Tablero. Academic metrics first, period management after. */
+/** Container: Dirección's Tablero: calendar, period management, then metrics and comparison. */
 export function AdminOverview() {
   const overview = useAsyncData("admin-overview", (s) => s.admin.getOverview());
   const dashboard = useAsyncData("admin-dashboard", (s) => s.admin.getDashboard());
@@ -35,35 +29,17 @@ export function AdminOverview() {
         title="Tablero"
         description={
           metrics
-            ? `Resumen académico del ciclo ${metrics.year} al ${formatLongDay(metrics.today)}.`
-            : "Resumen académico del ciclo lectivo."
-        }
-        stats={
-          data
-            ? [
-                { label: "Alumnos", value: data.totals.students, href: "/admin/students" },
-                { label: "Familias", value: data.totals.parents, href: "/admin/parents" },
-                { label: "Docentes", value: data.totals.teachers, href: "/admin/teachers" },
-                { label: "Cursos", value: data.totals.courses, href: "/admin/courses" },
-              ]
-            : undefined
+            ? `Resumen del ciclo ${metrics.year} al ${formatLongDay(metrics.today)}.`
+            : "Resumen del ciclo lectivo."
         }
       />
       <div className="flex flex-col gap-10">
-        {dashboard.loading && <LoadingState variant="cards" />}
-        {dashboard.error && <ErrorState message={dashboard.error} />}
-        {metrics && (
-          <DashboardSections metrics={metrics} />
-        )}
+        <AdminCalendar />
 
-        {overview.loading && !dashboard.loading && <LoadingState variant="cards" />}
+        {overview.loading && <LoadingState variant="cards" />}
         {overview.error && <ErrorState message={overview.error} />}
         {data && (
-          <div className="flex flex-col gap-10">
-            <SectionHeading
-              title="Gestión del período"
-              description="Pendientes, publicación de boletines y lectura de las familias."
-            />
+          <>
             <PendingCard items={pendingItems(data.courses, data.progress)} />
             <div className="grid items-start gap-6 lg:grid-cols-2">
               <section className="flex min-w-0 flex-col">
@@ -75,10 +51,12 @@ export function AdminOverview() {
               </section>
               <ReadingCard progress={data.progress} />
             </div>
-
-            <CourseTable courses={data.courses} />
-          </div>
+          </>
         )}
+
+        {dashboard.loading && <LoadingState variant="cards" />}
+        {dashboard.error && <ErrorState message={dashboard.error} />}
+        {metrics && <DashboardSections metrics={metrics} />}
       </div>
     </>
   );
@@ -166,103 +144,6 @@ function PendingCard({ items }: { items: PendingItem[] }) {
           ))}
         </ul>
       )}
-    </section>
-  );
-}
-
-function teacherText(teachers: CourseOverview["teachers"]) {
-  return teachers.map(displayName).join(", ") || "Sin asignar";
-}
-
-function CourseTable({ courses }: { courses: CourseOverview[] }) {
-  return (
-    <section className="min-w-0">
-      <SectionHeading title="Cursos" description="Alumnos con notas publicadas en cada período." />
-
-      {/* Phones: one card per course. */}
-      <ul className="flex flex-col gap-3 md:hidden">
-        {courses.map(({ course, teachers, studentCount, progress }) => (
-          <li key={course.id} className="surface-card overflow-hidden">
-            <Link
-              href={`/admin/grades/${course.id}`}
-              className="block border-b border-border bg-primary-tint px-4 py-3 focus-visible:ring-2 focus-visible:ring-primary/40 focus-visible:outline-none focus-visible:ring-inset"
-            >
-              <span className="font-serif text-base font-semibold text-navy">{course.name}</span>
-              <span className="block text-xs text-muted-foreground">
-                {studentCount} alumnos · {teacherText(teachers)} ·{" "}
-                <span className="whitespace-nowrap">{gradingTypeLabel(course.gradingType)}</span>
-              </span>
-            </Link>
-            <dl className="grid grid-cols-2 gap-x-4 gap-y-3 px-4 py-3">
-              {progress.map((p) => (
-                <div key={String(p.period)}>
-                  <dt className="flex items-baseline justify-between text-xs text-muted-foreground">
-                    {periodShortLabel(p.period)}
-                    <span className="tabular-nums">
-                      <span className="font-medium text-foreground">{p.published}</span>/{p.total}
-                    </span>
-                  </dt>
-                  <dd className="mt-1.5">
-                    <ProgressBar complete={p.complete} published={p.published} total={p.total} />
-                  </dd>
-                </div>
-              ))}
-            </dl>
-          </li>
-        ))}
-      </ul>
-
-      {/* From md: the full table. */}
-      <div className="surface-card relative hidden overflow-x-auto md:block">
-        <table className="w-full text-sm">
-          <thead className="bg-primary-tint">
-            <tr className="border-b border-slate-200">
-              <th className="h-9 px-4 text-left text-[11px] font-semibold tracking-[0.05em] text-navy/75 uppercase">
-                Curso
-              </th>
-              <th className="h-9 px-4 text-left text-[11px] font-semibold tracking-[0.05em] text-navy/75 uppercase">
-                Docente
-              </th>
-              {courses[0]?.progress.map((p) => (
-                <th
-                  key={String(p.period)}
-                  className="h-9 px-3 text-left text-[11px] font-semibold tracking-[0.05em] text-navy/75 uppercase"
-                >
-                  {periodShortLabel(p.period)}
-                </th>
-              ))}
-            </tr>
-          </thead>
-          <tbody>
-            {courses.map(({ course, teachers, studentCount, progress }) => (
-              <tr key={course.id} className="border-b border-slate-100 last:border-b-0 hover:bg-slate-50/60">
-                <td className="px-4 py-3">
-                  <Link
-                    href={`/admin/grades/${course.id}`}
-                    className="font-medium text-foreground hover:text-primary"
-                  >
-                    {course.name}
-                  </Link>
-                  <p className="text-xs text-muted-foreground">
-                    {gradingTypeLabel(course.gradingType)} · {studentCount} alumnos
-                  </p>
-                </td>
-                <td className="px-4 py-3 text-slate-700">{teacherText(teachers)}</td>
-                {progress.map((p) => (
-                  <td key={String(p.period)} className="px-3 py-3">
-                    <div className="w-20 lg:w-24">
-                      <p className="mb-1.5 text-xs text-slate-600 tabular-nums">
-                        <span className="font-medium text-foreground">{p.published}</span>/{p.total}
-                      </p>
-                      <ProgressBar complete={p.complete} published={p.published} total={p.total} />
-                    </div>
-                  </td>
-                ))}
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
     </section>
   );
 }
