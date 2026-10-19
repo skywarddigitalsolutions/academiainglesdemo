@@ -16,21 +16,28 @@ import {
   ProgressLegend,
 } from "@/features/report-card/period-progress";
 import { cn } from "@/lib/utils";
+import { DashboardSections } from "./dashboard/dashboard-sections";
+import { formatLongDay } from "./dashboard/dashboard-model";
 import { useAsyncData } from "@/providers/use-async-data";
 import { pendingItems, type PendingItem } from "./pending";
 
-/** Container: institution overview for Dirección. */
+/** Container: Dirección's Tablero. Academic metrics first, period management after. */
 export function AdminOverview() {
-  const { data, error, loading } = useAsyncData("admin-overview", (s) =>
-    s.admin.getOverview(),
-  );
+  const overview = useAsyncData("admin-overview", (s) => s.admin.getOverview());
+  const dashboard = useAsyncData("admin-dashboard", (s) => s.admin.getDashboard());
+  const data = overview.data;
+  const metrics = dashboard.data;
 
   return (
     <>
       <PageBand
         eyebrow="Dirección"
-        title="Inicio"
-        description="Estado de los boletines del ciclo lectivo en todo el instituto."
+        title="Tablero"
+        description={
+          metrics
+            ? `Resumen académico del ciclo ${metrics.year} al ${formatLongDay(metrics.today)}.`
+            : "Resumen académico del ciclo lectivo."
+        }
         stats={
           data
             ? [
@@ -42,25 +49,35 @@ export function AdminOverview() {
             : undefined
         }
       />
-      {loading && <LoadingState variant="cards" />}
-      {error && <ErrorState message={error} />}
-      {data && (
-        <div className="flex flex-col gap-10">
-          <PendingCard items={pendingItems(data.courses, data.progress)} />
-          <div className="grid items-start gap-6 lg:grid-cols-2">
-            <section className="flex min-w-0 flex-col">
-              <SectionHeading title="Publicación por período" />
-              <div className="surface-card px-5 py-4">
-                <PeriodProgressList progress={data.progress} />
-                <ProgressLegend className="mt-3 border-t border-slate-100 pt-3" />
-              </div>
-            </section>
-            <ReadingCard progress={data.progress} />
-          </div>
+      <div className="flex flex-col gap-10">
+        {dashboard.loading && <LoadingState variant="cards" />}
+        {dashboard.error && <ErrorState message={dashboard.error} />}
+        {metrics && <DashboardSections metrics={metrics} />}
 
-          <CourseTable courses={data.courses} />
-        </div>
-      )}
+        {overview.loading && !dashboard.loading && <LoadingState variant="cards" />}
+        {overview.error && <ErrorState message={overview.error} />}
+        {data && (
+          <div className="flex flex-col gap-10">
+            <SectionHeading
+              title="Gestión del período"
+              description="Pendientes, publicación de boletines y lectura de las familias."
+            />
+            <PendingCard items={pendingItems(data.courses, data.progress)} />
+            <div className="grid items-start gap-6 lg:grid-cols-2">
+              <section className="flex min-w-0 flex-col">
+                <SectionHeading title="Publicación por período" />
+                <div className="surface-card px-5 py-4">
+                  <PeriodProgressList progress={data.progress} />
+                  <ProgressLegend className="mt-3 border-t border-slate-100 pt-3" />
+                </div>
+              </section>
+              <ReadingCard progress={data.progress} />
+            </div>
+
+            <CourseTable courses={data.courses} />
+          </div>
+        )}
+      </div>
     </>
   );
 }

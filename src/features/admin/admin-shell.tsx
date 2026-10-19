@@ -13,7 +13,7 @@ import {
 import { AppShell, type NavItem } from "@/components/layout/app-shell";
 
 const NAV: NavItem[] = [
-  { label: "Inicio", href: "/admin", icon: LayoutDashboard, exact: true },
+  { label: "Tablero", href: "/admin", icon: LayoutDashboard, exact: true },
   { label: "Alumnos", href: "/admin/students", icon: Users },
   { label: "Notas", href: "/admin/grades", icon: ClipboardList },
   { label: "Exámenes", href: "/admin/exams", icon: CalendarDays },
