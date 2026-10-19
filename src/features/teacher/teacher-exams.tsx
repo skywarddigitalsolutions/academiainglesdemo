@@ -78,16 +78,23 @@ export function TeacherExamsContainer() {
           agenda={data}
           hrefFor={(item) => `/teacher/exams/${item.exam.id}`}
           emptyAction={newButton}
+          ctaLabel={(item) =>
+            item.status === "pending-grades"
+              ? "Cargar notas"
+              : item.status === "upcoming"
+                ? "Ver lista del curso"
+                : "Ver notas"
+          }
           renderActions={(item) => (
             <>
               <Button
                 variant="ghost"
-                size="icon-sm"
+                className="h-11 min-w-11 gap-2 px-3 text-[15px]"
                 aria-label={`Editar ${item.exam.topic}`}
-                title="Editar"
                 onClick={() => setForm(editExamForm(item.exam))}
               >
                 <Pencil aria-hidden />
+                <span className="hidden md:inline">Editar</span>
               </Button>
               <ConfirmDelete
                 title="¿Eliminar el examen?"
@@ -96,12 +103,11 @@ export function TeacherExamsContainer() {
               >
                 <Button
                   variant="ghost"
-                  size="icon-sm"
+                  className="h-11 min-w-11 gap-2 px-3 text-[15px] text-muted-foreground hover:text-destructive"
                   aria-label={`Eliminar ${item.exam.topic}`}
-                  title="Eliminar"
-                  className="text-muted-foreground hover:text-destructive"
                 >
                   <Trash2 aria-hidden />
+                  <span className="hidden md:inline">Eliminar</span>
                 </Button>
               </ConfirmDelete>
             </>
