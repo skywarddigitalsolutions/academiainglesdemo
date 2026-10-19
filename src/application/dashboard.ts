@@ -1,6 +1,6 @@
 import type { Course } from "@/domain/course";
 import type { Exam } from "@/domain/exam";
-import type { ConceptualGrade } from "@/domain/grading";
+import type { ConceptualGrade, GradingType } from "@/domain/grading";
 import {
   averageOf,
   CONCEPTUAL_SCORE,
@@ -15,7 +15,7 @@ import { BIMESTER_NUMBERS, type BimesterNumber } from "@/domain/report-card";
 import { fullName, type Student } from "@/domain/student";
 import type { User } from "@/domain/user";
 import { today } from "./exams";
-import { loadOrCreateReportCard, type UseCaseDeps } from "./shared";
+import { loadOrCreateReportCard, requireCourse, type UseCaseDeps } from "./shared";
 
 /*
  * Read model for Dirección's "Tablero". Built from drafts too: Dirección sees
@@ -179,6 +179,39 @@ function buildCourse(
   };
 }
 
+async function studentMetrics(
+  deps: UseCaseDeps,
+  student: Student,
+  gradingType: GradingType | undefined,
+): Promise<StudentMetrics> {
+  const card = await loadOrCreateReportCard(deps, student);
+  return { student, performance: studentPerformance(card, gradingType) };
+}
+
+/** Metrics of one course (same shape as its entry in the dashboard). */
+export async function loadCourseMetrics(
+  deps: UseCaseDeps,
+  courseId: string,
+): Promise<CourseMetrics> {
+  const course = await requireCourse(deps, courseId);
+  const { students, users, exams } = deps.repositories;
+  const [courseStudents, teachers, courseExams] = await Promise.all([
+    students.listByCourse(course.id),
+    users.listByRole("teacher"),
+    exams.listByYear(deps.year),
+  ]);
+  const roster = await Promise.all(
+    courseStudents.map((s) => studentMetrics(deps, s, course.gradingType)),
+  );
+  return buildCourse(
+    course,
+    teachers.filter((t) => course.teacherIds.includes(t.id)),
+    roster,
+    courseExams.filter((e) => e.courseId === course.id),
+    today(deps),
+  );
+}
+
 export async function loadDashboard(deps: UseCaseDeps): Promise<DashboardMetrics> {
   const { courses, students, users, exams } = deps.repositories;
   const day = today(deps);
@@ -189,14 +222,9 @@ export async function loadDashboard(deps: UseCaseDeps): Promise<DashboardMetrics
     exams.listByYear(deps.year),
   ]);
   const metrics: StudentMetrics[] = await Promise.all(
-    allStudents.map(async (student) => {
-      const card = await loadOrCreateReportCard(deps, student);
-      const gradingType = allCourses.find((c) => c.id === student.courseId)?.gradingType;
-      return {
-        student,
-        performance: studentPerformance(card, gradingType),
-      };
-    }),
+    allStudents.map((student) =>
+      studentMetrics(deps, student, allCourses.find((c) => c.id === student.courseId)?.gradingType),
+    ),
   );
 
   const courseMetrics = allCourses.map((course) =>

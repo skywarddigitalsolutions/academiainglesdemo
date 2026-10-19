@@ -63,8 +63,7 @@ function kpis(school: SchoolMetrics): Kpi[] {
       tone: atRisk > 0 ? "warning" : "success",
       label: "En riesgo de rendir en marzo",
       value: String(atRisk),
-      helper: `${school.atRiskHigh} alto · ${school.atRiskMedium} medio. Ver quiénes`,
-      href: "#riesgo",
+      helper: `${school.atRiskHigh} alto · ${school.atRiskMedium} medio`,
     },
     {
       id: "exams",

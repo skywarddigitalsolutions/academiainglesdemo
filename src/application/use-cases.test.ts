@@ -834,6 +834,15 @@ describe("admin dashboard", () => {
     expect(dashboard.bimesterAverages[0].concept).toBeNull();
   });
 
+  it("loads the metrics of a single course, the same as the dashboard entry", async () => {
+    const dashboard = await uc.admin.getDashboard();
+    for (const id of ["c-5a", "c-2a"]) {
+      const metrics = await uc.admin.getCourseMetrics(id);
+      expect(metrics).toEqual(dashboard.courses.find((c) => c.course.id === id));
+    }
+    await expect(uc.admin.getCourseMetrics("c-ghost")).rejects.toThrow(DomainError);
+  });
+
   it("lists students at risk with their reasons", async () => {
     const dashboard = await uc.admin.getDashboard();
     const course = dashboard.courses.find((c) => c.course.id === "c-5a")!;

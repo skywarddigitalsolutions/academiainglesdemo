@@ -66,7 +66,9 @@ export function CourseGradeSheet({
   canEdit,
   lockRow,
   banner,
+  summary,
   aside,
+  footer,
   children,
 }: {
   sheet: GradeSheet;
@@ -94,8 +96,12 @@ export function CourseGradeSheet({
   lockRow?: (row: GradeSheetRow, period: ReportPeriod) => boolean;
   /** Status message of the selected period, above the sheet. */
   banner?: (ctx: ReadModeContext) => ReactNode;
+  /** Content between the header and the period timeline (e.g. a course summary). */
+  summary?: ReactNode;
   /** Content after the sheet (e.g. notes). */
   aside?: ReactNode;
+  /** Content at the very bottom of the page, after `aside`. */
+  footer?: ReactNode;
   /** Dialogs owned by the page. */
   children?: (ctx: ReadModeContext) => ReactNode;
 }) {
@@ -203,6 +209,8 @@ export function CourseGradeSheet({
           )
         }
       />
+
+      {summary}
 
       <PeriodTimeline
         steps={steps}
@@ -332,6 +340,8 @@ export function CourseGradeSheet({
       )}
 
       {aside}
+
+      {footer}
 
       {children?.(ctx)}
     </>

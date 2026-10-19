@@ -19,10 +19,13 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
+import { SectionHeading } from "@/components/layout/page-header";
 import { gradingTypeLabel } from "@/domain/course";
 import type { PeriodReview } from "@/domain/period-review";
 import type { ReportPeriod } from "@/domain/report-card";
 import { displayName, type User } from "@/domain/user";
+import { CourseSummary } from "@/features/admin/dashboard/course-summary";
+import { StudentProgressTable } from "@/features/admin/dashboard/student-progress-table";
 import { CourseGradeSheet } from "@/features/grade-sheet/course-grade-sheet";
 import { CourseNotesPanel } from "@/features/grade-sheet/course-notes";
 import { Schedule } from "@/features/grade-sheet/course-picker";
@@ -90,6 +93,13 @@ function CourseGrades({
   const [dialog, setDialog] = useState<DialogKind>(null);
   const [busy, setBusy] = useState(false);
   const notes = useAsyncData(`admin-notes:${course.id}`, (s) => s.admin.listCourseNotes(course.id));
+  const metrics = useAsyncData(`admin-course-metrics:${course.id}`, (s) =>
+    s.admin.getCourseMetrics(course.id),
+  );
+  const changeSheet = (next: GradeSheet) => {
+    onSheetChange(next);
+    metrics.reload();
+  };
 
   async function approve(period: ReportPeriod) {
     setBusy(true);
@@ -137,7 +147,7 @@ function CourseGrades({
   return (
     <CourseGradeSheet
       sheet={sheet}
-      onSheetChange={onSheetChange}
+      onSheetChange={changeSheet}
       eyebrow="Nota bimestral"
       breadcrumbs={[{ label: "Notas", href: "/admin/grades" }, { label: course.name }]}
       description={
@@ -181,6 +191,18 @@ function CourseGrades({
           {name}
         </Link>
       )}
+      summary={metrics.data && <CourseSummary metrics={metrics.data} />}
+      footer={
+        metrics.data && (
+          <section aria-label="Progreso de los alumnos" className="mt-10">
+            <SectionHeading
+              title="Progreso de los alumnos"
+              description="El cambio compara el último bimestre con nota contra el anterior."
+            />
+            <StudentProgressTable metrics={metrics.data} />
+          </section>
+        )
+      }
       aside={
         <CourseNotesPanel
           notes={notes.data ?? []}

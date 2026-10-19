@@ -6,7 +6,6 @@ import { SectionHeading } from "@/components/layout/page-header";
 import { ExamCalendar } from "@/features/exams/exam-calendar";
 import { BimesterChart } from "./bimester-chart";
 import { CourseComparison } from "./course-comparison";
-import { CourseDetail } from "./course-detail";
 import { KpiRow } from "./kpi-row";
 import { PassFailByCourse } from "./pass-fail-by-course";
 
@@ -50,7 +49,6 @@ export function DashboardSections({
       </div>
 
       <CourseComparison courses={metrics.courses} />
-      <CourseDetail courses={metrics.courses} />
 
       {exams.loading && <LoadingState variant="cards" />}
       {exams.error && <ErrorState message={exams.error} />}

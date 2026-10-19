@@ -1,5 +1,5 @@
 import type { BimesterAverage } from "@/application/dashboard";
-import { PASS_MARK } from "@/domain/grading";
+import { PASS_MARK, type GradingType } from "@/domain/grading";
 import { bimesterLabel } from "@/lib/format";
 
 const SCALE_MAX = 10;
@@ -8,8 +8,53 @@ function decimal(value: number): string {
   return String(value).replace(".", ",");
 }
 
-/** Vertical bars 1°-4° with the approval line; empty bimesters are dashed placeholders. */
-export function BimesterChart({ averages }: { averages: BimesterAverage[] }) {
+/** Conceptual courses: the median concept of each bimester as a labeled block, no numbers. */
+function ConceptBlocks({ averages }: { averages: BimesterAverage[] }) {
+  const summary = averages
+    .map((a) => `${bimesterLabel(a.bimester)}: ${a.concept ?? "sin notas"}`)
+    .join(". ");
+  return (
+    <figure className="m-0 pt-3">
+      <figcaption className="sr-only">Concepto por bimestre. {summary}.</figcaption>
+      <ul className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+        {averages.map((a) => (
+          <li
+            key={a.bimester}
+            className={
+              a.concept
+                ? "flex min-h-24 flex-col items-center justify-center gap-1 rounded-lg bg-primary-soft px-2 py-3 text-center"
+                : "flex min-h-24 flex-col items-center justify-center gap-1 rounded-lg border-2 border-dashed border-slate-300 px-2 py-3 text-center"
+            }
+          >
+            <span className="text-sm font-medium text-muted-foreground">{bimesterLabel(a.bimester)}</span>
+            <span
+              className={
+                a.concept
+                  ? "font-serif text-xl leading-tight font-semibold text-navy"
+                  : "text-sm text-muted-foreground"
+              }
+            >
+              {a.concept ?? "Sin notas"}
+            </span>
+          </li>
+        ))}
+      </ul>
+    </figure>
+  );
+}
+
+/**
+ * Numeric courses: vertical bars 1°-4° with the approval line; empty bimesters are
+ * dashed placeholders. Conceptual courses: the median concept per bimester.
+ */
+export function BimesterChart({
+  averages,
+  gradingType = "numeric",
+}: {
+  averages: BimesterAverage[];
+  gradingType?: GradingType;
+}) {
+  if (gradingType === "conceptual") return <ConceptBlocks averages={averages} />;
   const summary = averages
     .map((a) =>
       a.average === null
