@@ -88,7 +88,7 @@ describe("local storage repositories", () => {
 
   it("namespaces every key and versions the data collections", async () => {
     await repos.students.list();
-    expect(storage.getItem(`${STORAGE_PREFIX}v4:students`)).not.toBeNull();
+    expect(storage.getItem(`${STORAGE_PREFIX}v5:students`)).not.toBeNull();
   });
 
   it("ignores data stored with a previous schema version", async () => {
