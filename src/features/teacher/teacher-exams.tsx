@@ -78,6 +78,10 @@ export function TeacherExamsContainer() {
           agenda={data}
           hrefFor={(item) => `/teacher/exams/${item.exam.id}`}
           emptyAction={newButton}
+          calendar={{
+            title: "Calendario de exámenes",
+            description: "Muestra los exámenes del curso elegido.",
+          }}
           ctaLabel={(item) =>
             item.status === "pending-grades"
               ? "Cargar notas"
