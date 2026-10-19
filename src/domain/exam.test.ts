@@ -138,12 +138,12 @@ describe("exam grades", () => {
 
   it("validates grades against the grading type of the course", () => {
     expect(() => applyExamGrades(exam(), { "s-08": 11 }, "numeric", NOW)).toThrow(DomainError);
-    expect(() => applyExamGrades(exam(), { "s-08": "Bueno" }, "numeric", NOW)).toThrow(
+    expect(() => applyExamGrades(exam(), { "s-08": "Bien" }, "numeric", NOW)).toThrow(
       DomainError,
     );
     expect(() => applyExamGrades(exam(), { "s-01": 8 }, "conceptual", NOW)).toThrow(DomainError);
-    expect(applyExamGrades(exam(), { "s-01": "Muy bueno" }, "conceptual", NOW).grades).toEqual({
-      "s-01": "Muy bueno",
+    expect(applyExamGrades(exam(), { "s-01": "Muy bien" }, "conceptual", NOW).grades).toEqual({
+      "s-01": "Muy bien",
     });
   });
 
@@ -220,9 +220,9 @@ describe("exam stats", () => {
     expect(stats).toEqual({ total: 4, graded: 3, average: 6.83, atPassMark: 2 });
   });
 
-  it("counts conceptual grades other than Insuficiente at the pass mark, without average", () => {
+  it("counts conceptual grades other than Desaprobado at the pass mark, without average", () => {
     const stats = examStats(
-      exam({ grades: { "s-01": "Excelente", "s-02": "Insuficiente", "s-03": "Regular" } }),
+      exam({ grades: { "s-01": "Excelente", "s-02": "Desaprobado", "s-03": "Regular" } }),
       ["s-01", "s-02", "s-03"],
       "conceptual",
     );
@@ -254,7 +254,7 @@ describe("exam average for a bimester (reference only)", () => {
   });
 
   it("has no numeric average for conceptual grades", () => {
-    const conceptual = [exam({ grades: { "s-01": "Bueno" } })];
+    const conceptual = [exam({ grades: { "s-01": "Bien" } })];
     expect(examAverageForBimester(conceptual, "s-01", 3)).toBeNull();
   });
 });

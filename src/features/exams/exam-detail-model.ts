@@ -15,7 +15,7 @@ export function rowState(text: string, type: GradingType): RowState {
   if (!parsed.ok) return "invalid";
   const score = gradeScore(parsed.value);
   if (score === null) return "empty";
-  if (type === "conceptual") return parsed.value === "Insuficiente" ? "fail" : "pass";
+  if (type === "conceptual") return parsed.value === "Desaprobado" ? "fail" : "pass";
   return score >= PASS_MARK ? "pass" : "fail";
 }
 
@@ -65,7 +65,7 @@ export function liveExamStats(texts: Record<string, string>, type: GradingType):
   };
 }
 
-/** "Muy bueno (8,5)": the conceptual label nearest to a numeric average. */
+/** "Muy bien (8)": the conceptual label nearest to a numeric average. */
 export function conceptualAverageLabel(average: number | null): string {
   if (average === null) return "—";
   let best: ConceptualGrade = CONCEPTUAL_SCALE[0];
@@ -96,10 +96,12 @@ const NUMERIC_BANDS: { label: string; min: number; max: number; tone: StatusTone
 
 const CONCEPTUAL_TONES: Record<(typeof CONCEPTUAL_SCALE)[number], StatusTone> = {
   Excelente: "success",
-  "Muy bueno": "success",
-  Bueno: "info",
+  "Muy bien +": "success",
+  "Muy bien": "success",
+  "Bien +": "info",
+  Bien: "info",
   Regular: "warning",
-  Insuficiente: "danger",
+  Desaprobado: "danger",
 };
 
 export function gradeDistribution(texts: Record<string, string>, type: GradingType): DistributionBand[] {

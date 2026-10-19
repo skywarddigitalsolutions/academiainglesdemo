@@ -68,7 +68,7 @@ export interface ExamStats {
   graded: number;
   /** Numeric courses only, rounded to two decimals. */
   average: number | null;
-  /** Grades at or above the pass mark (not "Insuficiente" for conceptual). */
+  /** Grades at or above the pass mark (not "Desaprobado" for conceptual). */
   atPassMark: number;
 }
 
@@ -242,7 +242,7 @@ function average(values: number[]): number | null {
 }
 
 function atPassMark(value: GradeValue): boolean {
-  return typeof value === "number" ? value >= PASS_MARK : value !== "Insuficiente";
+  return typeof value === "number" ? value >= PASS_MARK : value !== "Desaprobado";
 }
 
 /** Stats over the given students (grades of students no longer in the course are ignored). */

@@ -28,12 +28,12 @@ describe("grade sheet model", () => {
     const filled = updateBimester(
       card(),
       1,
-      { applicationGrade: 7.5, conductGrade: "Bueno", absences: 2, observation: "Ok" },
+      { applicationGrade: 7.5, conductGrade: "Bien", absences: 2, observation: "Ok" },
       "numeric",
     );
     expect(bimesterValues(filled, 1)).toEqual({
       application: "7,5",
-      conduct: "Bueno",
+      conduct: "Bien",
       absences: "2",
       observation: "Ok",
     });
@@ -45,7 +45,7 @@ describe("grade sheet model", () => {
     expect(parseGradeText("", "numeric")).toEqual({ ok: true, value: null });
     expect(parseGradeText("11", "numeric").ok).toBe(false);
     expect(parseGradeText("abc", "numeric").ok).toBe(false);
-    expect(parseGradeText("Bueno", "conceptual")).toEqual({ ok: true, value: "Bueno" });
+    expect(parseGradeText("Bien", "conceptual")).toEqual({ ok: true, value: "Bien" });
   });
 
   it("flags invalid cells without throwing", () => {
@@ -60,12 +60,12 @@ describe("grade sheet model", () => {
   it("builds a bimester patch from text values", () => {
     expect(
       toBimesterPatch(
-        { application: "8", conduct: "Muy bueno", absences: "", observation: " Bien " },
+        { application: "8", conduct: "Muy bien", absences: "", observation: " Bien " },
         "numeric",
       ),
     ).toEqual({
       applicationGrade: 8,
-      conductGrade: "Muy bueno",
+      conductGrade: "Muy bien",
       absences: 0,
       observation: "Bien",
     });
@@ -107,7 +107,7 @@ describe("grade sheet model", () => {
 
   it("knows when a row can be published", () => {
     expect(
-      isRowComplete(1, { application: "8", conduct: "Bueno", absences: "", observation: "" }),
+      isRowComplete(1, { application: "8", conduct: "Bien", absences: "", observation: "" }),
     ).toBe(true);
     expect(
       isRowComplete(1, { application: "8", conduct: "", absences: "", observation: "" }),
@@ -124,7 +124,7 @@ describe("grade sheet model", () => {
   });
 
   it("tracks only the cells that differ from the stored values", () => {
-    const base = { application: "8", conduct: "Bueno", absences: "0", observation: "" };
+    const base = { application: "8", conduct: "Bien", absences: "0", observation: "" };
     const edited = editRowDraft(base, {}, "application", "9");
     expect(edited).toEqual({ application: "9" });
     expect(editRowDraft(base, edited, "application", "8")).toEqual({});
@@ -172,7 +172,7 @@ describe("grade sheet model", () => {
     const filled = updateBimester(
       card(),
       1,
-      { applicationGrade: 8, conductGrade: "Bueno" },
+      { applicationGrade: 8, conductGrade: "Bien" },
       "numeric",
     );
     expect(isPeriodPublished(filled, 1)).toBe(false);
@@ -189,7 +189,7 @@ describe("grade sheet model", () => {
   it("opens the sheet on the first period that is not fully published", () => {
     const now = new Date("2026-10-15T13:00:00.000Z");
     const first = publishBimester(
-      updateBimester(card(), 1, { applicationGrade: 8, conductGrade: "Bueno" }, "numeric"),
+      updateBimester(card(), 1, { applicationGrade: 8, conductGrade: "Bien" }, "numeric"),
       1,
       now,
     );

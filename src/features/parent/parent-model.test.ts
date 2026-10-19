@@ -24,7 +24,7 @@ const NOW = new Date("2026-10-15T13:00:00.000Z");
 
 function publish(card: ReportCard, n: BimesterNumber) {
   return publishBimester(
-    updateBimester(card, n, { applicationGrade: 8, conductGrade: "Bueno" }, "numeric"),
+    updateBimester(card, n, { applicationGrade: 8, conductGrade: "Bien" }, "numeric"),
     n,
     NOW,
   );

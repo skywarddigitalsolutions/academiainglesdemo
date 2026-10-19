@@ -79,9 +79,9 @@ describe("scoreLabel", () => {
     expect(scoreLabel(null, "numeric")).toBe("—");
   });
   it("names the nearest conceptual grade with its equivalent", () => {
-    expect(scoreLabel(8.5, "conceptual")).toBe("Muy bueno (8,5)");
-    expect(scoreLabel(7.7, "conceptual")).toBe("Bueno (7)");
-    expect(scoreLabel(9.4, "conceptual")).toBe("Excelente (10)");
+    expect(scoreLabel(8.1, "conceptual")).toBe("Muy bien (8)");
+    expect(scoreLabel(7.7, "conceptual")).toBe("Bien + (7,5)");
+    expect(scoreLabel(9.8, "conceptual")).toBe("Excelente (10)");
     expect(scoreLabel(null, "conceptual")).toBe("—");
   });
 });

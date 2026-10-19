@@ -32,7 +32,7 @@ function filledCard(): ReportCard {
   return updateBimester(
     newCard(),
     1,
-    { applicationGrade: 8, conductGrade: "Muy bueno", absences: 2 },
+    { applicationGrade: 8, conductGrade: "Muy bien", absences: 2 },
     "numeric",
   );
 }
@@ -67,7 +67,7 @@ describe("updateBimester", () => {
     const updated = updateBimester(
       original,
       1,
-      { applicationGrade: 7, conductGrade: "Bueno", observation: "Good work" },
+      { applicationGrade: 7, conductGrade: "Bien", observation: "Good work" },
       "numeric",
     );
     expect(getBimester(updated, 1).applicationGrade).toBe(7);
@@ -78,7 +78,7 @@ describe("updateBimester", () => {
 
   it("rejects an application grade that does not match the grading type", () => {
     expect(() =>
-      updateBimester(newCard(), 1, { applicationGrade: "Bueno" }, "numeric"),
+      updateBimester(newCard(), 1, { applicationGrade: "Bien" }, "numeric"),
     ).toThrow(DomainError);
     expect(() =>
       updateBimester(newCard(), 1, { applicationGrade: 9 }, "conceptual"),
@@ -100,7 +100,7 @@ describe("updateBimester", () => {
       updateBimester(
         newCard(),
         1,
-        { conductGrade: 8 as unknown as "Bueno" },
+        { conductGrade: 8 as unknown as "Bien" },
         "numeric",
       ),
     ).toThrow(DomainError);
@@ -187,7 +187,7 @@ describe("closing section", () => {
 
   it("validates the cuatrimestral exam against the grading type", () => {
     expect(() =>
-      updateClosing(newCard(), { cuatrimestralExam: "Bueno" }, "numeric"),
+      updateClosing(newCard(), { cuatrimestralExam: "Bien" }, "numeric"),
     ).toThrow(DomainError);
   });
 
@@ -307,7 +307,7 @@ describe("toParentView", () => {
     card = updateBimester(
       card,
       2,
-      { applicationGrade: 8, conductGrade: "Bueno" },
+      { applicationGrade: 8, conductGrade: "Bien" },
       "numeric",
     );
     card = publishBimester(card, 2, NOW);

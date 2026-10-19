@@ -91,7 +91,7 @@ describe("teacher", () => {
 
   it("saves several students of a bimester as drafts in one call", async () => {
     await uc.teacher.saveGradeSheet(TEACHER, "c-5a", 4, [
-      { studentId: "s-08", patch: { applicationGrade: 8, conductGrade: "Muy bueno" } },
+      { studentId: "s-08", patch: { applicationGrade: 8, conductGrade: "Muy bien" } },
       { studentId: "s-09", patch: { applicationGrade: 9, absences: 1 } },
     ]);
     const sheet = await uc.teacher.getGradeSheet(TEACHER, "c-5a");
@@ -123,7 +123,7 @@ describe("teacher", () => {
 
   it("sends the complete students of a period to Dirección and skips the rest", async () => {
     await uc.teacher.saveGradeSheet(TEACHER, "c-5a", 4, [
-      { studentId: "s-08", patch: { applicationGrade: 8, conductGrade: "Muy bueno" } },
+      { studentId: "s-08", patch: { applicationGrade: 8, conductGrade: "Muy bien" } },
       { studentId: "s-09", patch: { applicationGrade: 9 } },
     ]);
     const result = await uc.teacher.submitForApproval(TEACHER, "c-5a", 4);
@@ -141,7 +141,7 @@ describe("teacher", () => {
 
   it("cannot edit a period while Dirección reviews it", async () => {
     await uc.teacher.saveGradeSheet(TEACHER, "c-5a", 4, [
-      { studentId: "s-08", patch: { applicationGrade: 8, conductGrade: "Muy bueno" } },
+      { studentId: "s-08", patch: { applicationGrade: 8, conductGrade: "Muy bien" } },
     ]);
     await uc.teacher.submitForApproval(TEACHER, "c-5a", 4);
     await expect(
@@ -151,7 +151,7 @@ describe("teacher", () => {
 
   it("withdraws a pending submission and edits again", async () => {
     await uc.teacher.saveGradeSheet(TEACHER, "c-5a", 4, [
-      { studentId: "s-08", patch: { applicationGrade: 8, conductGrade: "Muy bueno" } },
+      { studentId: "s-08", patch: { applicationGrade: 8, conductGrade: "Muy bien" } },
     ]);
     await uc.teacher.submitForApproval(TEACHER, "c-5a", 4);
     const sheet = await uc.teacher.withdrawSubmission(TEACHER, "c-5a", 4);
@@ -284,7 +284,7 @@ describe("admin", () => {
 
   it("runs the whole approval cycle until families see the period", async () => {
     await uc.teacher.saveGradeSheet(TEACHER, "c-5a", 4, [
-      { studentId: "s-08", patch: { applicationGrade: 5, conductGrade: "Bueno" } },
+      { studentId: "s-08", patch: { applicationGrade: 5, conductGrade: "Bien" } },
     ]);
     await uc.teacher.submitForApproval(TEACHER, "c-5a", 4);
     await uc.admin.returnPeriod(ADMIN, "c-5a", 4, "Confirme la nota de aplicación de Tomás.");

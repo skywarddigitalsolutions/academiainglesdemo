@@ -34,12 +34,14 @@ describe("gradeScore", () => {
   it("maps conceptual grades and passes numbers through", () => {
     expect(CONCEPTUAL_SCORE).toEqual({
       Excelente: 10,
-      "Muy bueno": 8.5,
-      Bueno: 7,
+      "Muy bien +": 9,
+      "Muy bien": 8,
+      "Bien +": 7.5,
+      Bien: 7,
       Regular: 6,
-      Insuficiente: 4,
+      Desaprobado: 4,
     });
-    expect(gradeScore("Muy bueno")).toBe(8.5);
+    expect(gradeScore("Muy bien")).toBe(8);
     expect(gradeScore(7.5)).toBe(7.5);
     expect(gradeScore(null)).toBeNull();
     expect(gradeScore(undefined)).toBeNull();
@@ -107,7 +109,7 @@ describe("studentPerformance", () => {
   });
 
   it("converts conceptual grades", () => {
-    const p = studentPerformance(card(["Bueno", "Excelente", null, null]), TWICE_A_WEEK);
+    const p = studentPerformance(card(["Bien", "Excelente", null, null]), TWICE_A_WEEK);
     expect(p.scores).toEqual([7, 10, null, null]);
     expect(p.average).toBe(8.5);
   });

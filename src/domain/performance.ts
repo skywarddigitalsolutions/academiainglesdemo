@@ -8,13 +8,15 @@ import { BIMESTER_NUMBERS, type BimesterNumber, type ReportCard } from "./report
  * attendance is estimated from the course schedule and the recorded absences.
  */
 
-/** Numeric equivalence of the conceptual scale, used only to compute averages. */
+/** Internal ordering score of the conceptual scale (never shown as a grade). */
 export const CONCEPTUAL_SCORE: Record<ConceptualGrade, number> = {
   Excelente: 10,
-  "Muy bueno": 8.5,
-  Bueno: 7,
+  "Muy bien +": 9,
+  "Muy bien": 8,
+  "Bien +": 7.5,
+  Bien: 7,
   Regular: 6,
-  Insuficiente: 4,
+  Desaprobado: 4,
 };
 
 export const WEEKS_PER_BIMESTER = 8;

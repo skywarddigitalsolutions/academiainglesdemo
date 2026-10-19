@@ -2,10 +2,12 @@ export type GradingType = "conceptual" | "numeric";
 
 export const CONCEPTUAL_SCALE = [
   "Excelente",
-  "Muy bueno",
-  "Bueno",
+  "Muy bien +",
+  "Muy bien",
+  "Bien +",
+  "Bien",
   "Regular",
-  "Insuficiente",
+  "Desaprobado",
 ] as const;
 
 export type ConceptualGrade = (typeof CONCEPTUAL_SCALE)[number];

@@ -55,7 +55,7 @@ export function riskBadge(level: RiskLevel): { label: string; tone: StatusTone }
   return RISK_BADGES[level];
 }
 
-/** Numeric: "7,5". Conceptual: nearest label with its equivalent, "Muy bueno (8,5)". */
+/** Numeric: "7,5". Conceptual: nearest label with its equivalent, "Muy bien (8)". */
 export function scoreLabel(score: number | null, gradingType: GradingType): string {
   if (score === null) return "—";
   if (gradingType === "numeric") return decimalComma(score);

@@ -190,7 +190,7 @@ export function CourseComparison({ courses }: { courses: CourseMetrics[] }) {
       </div>
       <p className="mt-2 text-sm text-muted-foreground">
         Los cursos con notas conceptuales se convierten con esta equivalencia: Excelente 10 · Muy
-        bueno 8,5 · Bueno 7 · Regular 6 · Insuficiente 4. La asistencia es una estimación a partir
+        bien + 9 · Muy bien 8 · Bien + 7,5 · Bien 7 · Regular 6 · Desaprobado 4. La asistencia es una estimación a partir
         del horario del curso.
       </p>
     </section>

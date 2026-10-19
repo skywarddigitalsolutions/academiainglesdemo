@@ -28,7 +28,7 @@ let seq = 0;
 const empty = () =>
   createEmptyReportCard({ id: `rc-${++seq}`, studentId: `s-${seq}`, courseId: "c", year: 2026 });
 const draft = (card = empty()) =>
-  updateBimester(card, 1, { applicationGrade: 8, conductGrade: "Bueno" }, "numeric");
+  updateBimester(card, 1, { applicationGrade: 8, conductGrade: "Bien" }, "numeric");
 const published = () => publishBimester(draft(), 1, NOW);
 const read = () => acknowledgeBimester(published(), 1, NOW);
 
@@ -155,10 +155,10 @@ describe("grade sheet summary", () => {
       observation: "",
     });
     const rows = [
-      { values: bim("8", "Bueno"), errors: {}, published: false },
+      { values: bim("8", "Bien"), errors: {}, published: false },
       { values: bim("8", ""), errors: {}, published: false },
-      { values: bim("12", "Bueno"), errors: { application: true as const }, published: false },
-      { values: bim("9", "Bueno"), errors: {}, published: true },
+      { values: bim("12", "Bien"), errors: { application: true as const }, published: false },
+      { values: bim("9", "Bien"), errors: {}, published: true },
     ];
     const { ready, incomplete } = publishCandidates(rows, 1);
     expect(ready).toEqual([rows[0]]);

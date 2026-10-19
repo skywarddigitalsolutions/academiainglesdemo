@@ -218,10 +218,10 @@ export function isRowComplete(period: ReportPeriod, values: RowValues): boolean 
   return v.application.trim() !== "" && v.conduct !== "";
 }
 
-/** Numeric grades below 6 or "Insuficiente": a visual hint only. */
+/** Numeric grades below 6 or "Desaprobado": a visual hint only. */
 export function isLowGrade(text: string): boolean {
   const trimmed = text.trim();
-  if (trimmed === "Insuficiente") return true;
+  if (trimmed === "Desaprobado") return true;
   if (trimmed === "") return false;
   const n = Number(trimmed.replace(",", "."));
   return Number.isFinite(n) && n < 6;

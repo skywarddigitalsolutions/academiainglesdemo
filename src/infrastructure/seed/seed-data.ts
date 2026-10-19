@@ -186,10 +186,10 @@ const LOW_OBSERVATION =
 
 function toConceptual(value: number): ConceptualGrade {
   if (value >= 9) return "Excelente";
-  if (value >= 8) return "Muy bueno";
-  if (value >= 7) return "Bueno";
+  if (value >= 8) return "Muy bien";
+  if (value >= 7) return "Bien";
   if (value >= 6) return "Regular";
-  return "Insuficiente";
+  return "Desaprobado";
 }
 
 function clampGrade(value: number): number {

@@ -22,7 +22,7 @@ describe("rowState", () => {
 
   it("classifies conceptual texts", () => {
     expect(rowState("Regular", "conceptual")).toBe("pass");
-    expect(rowState("Insuficiente", "conceptual")).toBe("fail");
+    expect(rowState("Desaprobado", "conceptual")).toBe("fail");
     expect(rowState("", "conceptual")).toBe("empty");
     expect(rowState("Genial", "conceptual")).toBe("invalid");
   });
@@ -43,7 +43,7 @@ describe("liveExamStats", () => {
   });
 
   it("averages conceptual grades through their numeric equivalence", () => {
-    const stats = liveExamStats({ a: "Excelente", b: "Bueno" }, "conceptual");
+    const stats = liveExamStats({ a: "Excelente", b: "Bien" }, "conceptual");
     expect(stats.average).toBe(8.5);
     expect(stats.passed).toBe(2);
   });
@@ -51,8 +51,8 @@ describe("liveExamStats", () => {
 
 describe("conceptualAverageLabel", () => {
   it("returns the nearest label with its equivalence", () => {
-    expect(conceptualAverageLabel(8.5)).toBe("Muy bueno (8,5)");
-    expect(conceptualAverageLabel(7.9)).toBe("Muy bueno (8,5)");
+    expect(conceptualAverageLabel(8.2)).toBe("Muy bien (8)");
+    expect(conceptualAverageLabel(7.9)).toBe("Muy bien (8)");
     expect(conceptualAverageLabel(5)).toBe("Regular (6)");
     expect(conceptualAverageLabel(null)).toBe("—");
   });
@@ -70,10 +70,10 @@ describe("gradeDistribution", () => {
   });
 
   it("groups conceptual grades by label", () => {
-    const bands = gradeDistribution({ a: "Bueno", b: "Bueno", c: "Insuficiente" }, "conceptual");
-    expect(bands.find((b) => b.label === "Bueno")?.count).toBe(2);
-    expect(bands.find((b) => b.label === "Insuficiente")?.count).toBe(1);
-    expect(bands).toHaveLength(5);
+    const bands = gradeDistribution({ a: "Bien", b: "Bien", c: "Desaprobado" }, "conceptual");
+    expect(bands.find((b) => b.label === "Bien")?.count).toBe(2);
+    expect(bands.find((b) => b.label === "Desaprobado")?.count).toBe(1);
+    expect(bands).toHaveLength(7);
   });
 });
 

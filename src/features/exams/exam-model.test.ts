@@ -52,8 +52,8 @@ describe("exam grade changes", () => {
       "s-08",
       "s-10",
     ]);
-    expect(examGradeChanges(exam, { "s-01": "Bueno" }, "conceptual")).toEqual({
-      changes: { "s-01": "Bueno" },
+    expect(examGradeChanges(exam, { "s-01": "Bien" }, "conceptual")).toEqual({
+      changes: { "s-01": "Bien" },
       invalid: [],
     });
   });

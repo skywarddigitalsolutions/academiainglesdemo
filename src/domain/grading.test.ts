@@ -13,10 +13,12 @@ describe("grading", () => {
   it("defines the conceptual scale from best to worst", () => {
     expect(CONCEPTUAL_SCALE).toEqual([
       "Excelente",
-      "Muy bueno",
-      "Bueno",
+      "Muy bien +",
+      "Muy bien",
+      "Bien +",
+      "Bien",
       "Regular",
-      "Insuficiente",
+      "Desaprobado",
     ]);
   });
 
@@ -37,22 +39,22 @@ describe("grading", () => {
   });
 
   it("recognizes conceptual grades", () => {
-    expect(isConceptualGrade("Muy bueno")).toBe(true);
+    expect(isConceptualGrade("Muy bien")).toBe(true);
     expect(isConceptualGrade("Sobresaliente")).toBe(false);
     expect(isConceptualGrade(8)).toBe(false);
   });
 
   it("validates a grade against the course grading type", () => {
-    expect(isValidGrade("conceptual", "Bueno")).toBe(true);
+    expect(isValidGrade("conceptual", "Bien")).toBe(true);
     expect(isValidGrade("conceptual", 8)).toBe(false);
     expect(isValidGrade("numeric", 8)).toBe(true);
-    expect(isValidGrade("numeric", "Bueno")).toBe(false);
+    expect(isValidGrade("numeric", "Bien")).toBe(false);
   });
 
   it("flags numeric grades below the pass mark as a hint only", () => {
     expect(isBelowPassMark(5)).toBe(true);
     expect(isBelowPassMark(6)).toBe(false);
-    expect(isBelowPassMark("Insuficiente")).toBe(false);
+    expect(isBelowPassMark("Desaprobado")).toBe(false);
     expect(isBelowPassMark(null)).toBe(false);
   });
 
