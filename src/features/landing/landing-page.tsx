@@ -13,7 +13,7 @@ import { ReportCardDocument } from "./report-card-document";
 const FAMILY_POINTS = [
   {
     title: "El boletín de cada bimestre",
-    text: "Notas, inasistencias y la observación del docente, en cuanto el instituto lo publica.",
+    text: "Notas y la observación del docente, en cuanto el instituto lo publica.",
   },
   {
     title: "Todos sus hijos en una cuenta",

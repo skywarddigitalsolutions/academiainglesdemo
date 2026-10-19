@@ -151,7 +151,6 @@ describe("grade sheet summary", () => {
     const bim = (application: string, conduct: string) => ({
       application,
       conduct,
-      absences: "",
       observation: "",
     });
     const rows = [

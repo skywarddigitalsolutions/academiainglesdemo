@@ -60,13 +60,12 @@ export function StudentProgressTable({ metrics }: { metrics: CourseMetrics }) {
               ))}
               <th className={TH}>Promedio</th>
               <th className={TH}>Cambio vs bimestre anterior</th>
-              <th className={TH}>Inasistencias</th>
             </tr>
           </thead>
           <tbody>
             {rows.length === 0 && (
               <tr>
-                <td colSpan={8} className="px-3 py-4 text-base text-muted-foreground">
+                <td colSpan={7} className="px-3 py-4 text-base text-muted-foreground">
                   Ningún alumno en esta vista.
                 </td>
               </tr>
@@ -102,7 +101,6 @@ export function StudentProgressTable({ metrics }: { metrics: CourseMetrics }) {
                       <span className="sr-only"> ({compare})</span>
                     </span>
                   </td>
-                  <td className="px-3 py-2 tabular-nums">{performance.absences.total}</td>
                 </tr>
               );
             })}

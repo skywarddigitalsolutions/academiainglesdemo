@@ -92,14 +92,14 @@ describe("teacher", () => {
   it("saves several students of a bimester as drafts in one call", async () => {
     await uc.teacher.saveGradeSheet(TEACHER, "c-5a", 4, [
       { studentId: "s-08", patch: { applicationGrade: 8, conductGrade: "Muy bien" } },
-      { studentId: "s-09", patch: { applicationGrade: 9, absences: 1 } },
+      { studentId: "s-09", patch: { applicationGrade: 9, observation: "Avanza bien" } },
     ]);
     const sheet = await uc.teacher.getGradeSheet(TEACHER, "c-5a");
     const tomas = sheet.rows.find((r) => r.student.id === "s-08")!;
     const martina = sheet.rows.find((r) => r.student.id === "s-09")!;
     expect(getBimester(tomas.card, 4).applicationGrade).toBe(8);
     expect(getBimesterStatus(getBimester(tomas.card, 4))).toBe("draft");
-    expect(getBimester(martina.card, 4).absences).toBe(1);
+    expect(getBimester(martina.card, 4).observation).toBe("Avanza bien");
   });
 
   it("does not write anything when one row of the sheet is invalid", async () => {
@@ -116,7 +116,7 @@ describe("teacher", () => {
   it("rejects sheet rows of students from another course", async () => {
     await expect(
       uc.teacher.saveGradeSheet(TEACHER, "c-5a", 4, [
-        { studentId: "s-01", patch: { absences: 1 } },
+        { studentId: "s-01", patch: { observation: "Nota" } },
       ]),
     ).rejects.toThrow(DomainError);
   });
@@ -145,7 +145,7 @@ describe("teacher", () => {
     ]);
     await uc.teacher.submitForApproval(TEACHER, "c-5a", 4);
     await expect(
-      uc.teacher.saveGradeSheet(TEACHER, "c-5a", 4, [{ studentId: "s-09", patch: { absences: 2 } }]),
+      uc.teacher.saveGradeSheet(TEACHER, "c-5a", 4, [{ studentId: "s-09", patch: { observation: "Nota" } }]),
     ).rejects.toThrow(DomainError);
   });
 
@@ -156,12 +156,12 @@ describe("teacher", () => {
     await uc.teacher.submitForApproval(TEACHER, "c-5a", 4);
     const sheet = await uc.teacher.withdrawSubmission(TEACHER, "c-5a", 4);
     expect(sheet.reviews.find((r) => r.period === 4)).toBeUndefined();
-    await uc.teacher.saveGradeSheet(TEACHER, "c-5a", 4, [{ studentId: "s-09", patch: { absences: 2 } }]);
+    await uc.teacher.saveGradeSheet(TEACHER, "c-5a", 4, [{ studentId: "s-09", patch: { observation: "Nota" } }]);
   });
 
   it("cannot change students whose period is already published", async () => {
     await expect(
-      uc.teacher.saveGradeSheet(TEACHER, "c-5a", 1, [{ studentId: "s-08", patch: { absences: 3 } }]),
+      uc.teacher.saveGradeSheet(TEACHER, "c-5a", 1, [{ studentId: "s-08", patch: { observation: "Nota" } }]),
     ).rejects.toThrow(DomainError);
   });
 
@@ -246,16 +246,16 @@ describe("admin", () => {
 
   it("returns a pending period with a note the teacher can read", async () => {
     await expect(uc.admin.returnPeriod(ADMIN, "c-1y", 3, "  ")).rejects.toThrow(DomainError);
-    const sheet = await uc.admin.returnPeriod(ADMIN, "c-1y", 3, "Revisar las inasistencias.");
+    const sheet = await uc.admin.returnPeriod(ADMIN, "c-1y", 3, "Revisar las observaciones.");
     expect(sheet.reviews.find((r) => r.period === 3)).toMatchObject({
       status: "returned",
-      returnNote: "Revisar las inasistencias.",
+      returnNote: "Revisar las observaciones.",
     });
     const notes = await uc.teacher.listCourseNotes(OTHER_TEACHER, "c-1y");
-    expect(notes[0]).toMatchObject({ text: "Revisar las inasistencias.", period: 3 });
+    expect(notes[0]).toMatchObject({ text: "Revisar las observaciones.", period: 3 });
     // The teacher can edit the returned period again.
     await uc.teacher.saveGradeSheet(OTHER_TEACHER, "c-1y", 3, [
-      { studentId: "s-18", patch: { absences: 1 } },
+      { studentId: "s-18", patch: { observation: "Nota" } },
     ]);
   });
 
@@ -265,9 +265,9 @@ describe("admin", () => {
   });
 
   it("corrects a pending period before approving it", async () => {
-    await uc.admin.saveGradeSheet("c-1y", 3, [{ studentId: "s-16", patch: { absences: 2 } }]);
+    await uc.admin.saveGradeSheet("c-1y", 3, [{ studentId: "s-16", patch: { observation: "Corregido" } }]);
     const { card } = await uc.admin.getReportCard("s-16");
-    expect(getBimester(card, 3).absences).toBe(2);
+    expect(getBimester(card, 3).observation).toBe("Corregido");
   });
 
   it("writes notes to the teachers of a course", async () => {
@@ -317,13 +317,13 @@ describe("admin", () => {
     expect(published.publishedAt).not.toBeNull();
 
     const sheet = await uc.admin.saveGradeSheet("c-5a", 1, [
-      { studentId: "s-08", patch: { applicationGrade: 6, absences: 4 } },
+      { studentId: "s-08", patch: { applicationGrade: 6, observation: "Corregida" } },
     ]);
 
     const row = sheet.rows.find((r) => r.student.id === "s-08")!;
     const corrected = getBimester(row.card, 1);
     expect(corrected.applicationGrade).toBe(6);
-    expect(corrected.absences).toBe(4);
+    expect(corrected.observation).toBe("Corregida");
     expect(corrected.publishedAt).toBe(published.publishedAt);
     expect(corrected.readAt).toBe(published.readAt);
   });
@@ -344,7 +344,7 @@ describe("admin", () => {
       ]),
     ).rejects.toThrow(DomainError);
     await expect(
-      uc.admin.saveGradeSheet("c-5a", 4, [{ studentId: "s-01", patch: { absences: 1 } }]),
+      uc.admin.saveGradeSheet("c-5a", 4, [{ studentId: "s-01", patch: { observation: "Nota" } }]),
     ).rejects.toThrow(DomainError);
     const { card } = await uc.admin.getReportCard("s-08");
     expect(getBimester(card, 4).applicationGrade).toBeNull();

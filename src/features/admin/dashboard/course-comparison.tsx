@@ -15,15 +15,9 @@ const KEYS: ComparisonKey[] = [
   "average",
   "passRate",
   "failRate",
-  "attendanceRate",
-  "absencesPerStudent",
   "examsTaken",
   "atRisk",
 ];
-
-function decimal(value: number | null): string {
-  return value === null ? "—" : String(value).replace(".", ",");
-}
 
 function teacherNames(metrics: CourseMetrics): string {
   return metrics.teachers.map(displayName).join(", ") || "Sin asignar";
@@ -67,12 +61,6 @@ function cells(metrics: CourseMetrics): { key: ComparisonKey; label: string; tex
     },
     { key: "passRate", label: "Aprobados", text: formatPercent(metrics.passRate) },
     { key: "failRate", label: "Desaprobados", text: formatPercent(metrics.failRate) },
-    { key: "attendanceRate", label: "Asistencia est.", text: formatPercent(metrics.attendanceRate) },
-    {
-      key: "absencesPerStudent",
-      label: "Inasistencias por alumno",
-      text: decimal(metrics.absencesPerStudent),
-    },
     { key: "examsTaken", label: "Exámenes tomados", text: String(metrics.examsTaken) },
     { key: "atRisk", label: "En riesgo", text: String(metrics.atRisk.length) },
   ];
@@ -120,10 +108,6 @@ export function CourseComparison({ courses }: { courses: CourseMetrics[] }) {
                   </dd>
                 </div>
               ))}
-              <div>
-                <dt className="text-sm text-muted-foreground">Inasistencias</dt>
-                <dd className="text-base tabular-nums">{metrics.absences} en total</dd>
-              </div>
             </dl>
           </li>
         ))}
@@ -139,8 +123,6 @@ export function CourseComparison({ courses }: { courses: CourseMetrics[] }) {
               <th className={TH}>Promedio</th>
               <th className={TH}>Aprobados</th>
               <th className={TH}>Desaprobados</th>
-              <th className={TH}>Asistencia est.</th>
-              <th className={TH}>Inasistencias</th>
               <th className={TH}>Exámenes tomados</th>
               <th className={TH}>En riesgo</th>
             </tr>
@@ -148,7 +130,7 @@ export function CourseComparison({ courses }: { courses: CourseMetrics[] }) {
           <tbody>
             {courses.map((metrics) => {
               const id = metrics.course.id;
-              const [average, pass, fail, attendance, perStudent, exams, risk] = cells(metrics);
+              const [average, pass, fail, exams, risk] = cells(metrics);
               return (
                 <tr key={id} className="border-b border-slate-100 last:border-b-0">
                   <td className="px-3 py-2">
@@ -166,17 +148,6 @@ export function CourseComparison({ courses }: { courses: CourseMetrics[] }) {
                     <Ranked courseId={id} ranks={ranks.failRate}>{fail.text}</Ranked>
                   </td>
                   <td className="px-3 py-2">
-                    <Ranked courseId={id} ranks={ranks.attendanceRate}>{attendance.text}</Ranked>
-                  </td>
-                  <td className="px-3 py-2">
-                    <span className="tabular-nums">{metrics.absences} en total</span>
-                    <span className="block">
-                      <Ranked courseId={id} ranks={ranks.absencesPerStudent}>
-                        {`${perStudent.text} por alumno`}
-                      </Ranked>
-                    </span>
-                  </td>
-                  <td className="px-3 py-2">
                     <Ranked courseId={id} ranks={ranks.examsTaken}>{exams.text}</Ranked>
                   </td>
                   <td className="px-3 py-2">
@@ -190,8 +161,7 @@ export function CourseComparison({ courses }: { courses: CourseMetrics[] }) {
       </div>
       <p className="mt-2 text-sm text-muted-foreground">
         Los cursos con notas conceptuales se convierten con esta equivalencia: Excelente 10 · Muy
-        bien + 9 · Muy bien 8 · Bien + 7,5 · Bien 7 · Regular 6 · Desaprobado 4. La asistencia es una estimación a partir
-        del horario del curso.
+        bien + 9 · Muy bien 8 · Bien + 7,5 · Bien 7 · Regular 6 · Desaprobado 4.
       </p>
     </section>
   );

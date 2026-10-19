@@ -7,7 +7,6 @@ import { cn } from "@/lib/utils";
 const GRADES = [
   { label: "Nota de aplicación", value: "8" },
   { label: "Conducta", value: "MB" },
-  { label: "Inasistencias", value: "1" },
 ];
 
 /**

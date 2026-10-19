@@ -300,10 +300,9 @@ function BimesterCard({ row, ...actions }: { row: ParentBimesterRow } & RowActio
         <StateBadge row={row} />
       </header>
       <div className="flex flex-col gap-4 p-4 sm:p-5">
-        <GradeGrid count={row.cuatrimestralExam !== null ? 4 : 3}>
+        <GradeGrid count={row.cuatrimestralExam !== null ? 3 : 2}>
           <GradeBox label="Nota de aplicación">{grade(b.applicationGrade)}</GradeBox>
           <GradeBox label="Conducta">{grade(b.conductGrade)}</GradeBox>
-          <GradeBox label="Inasistencias">{b.absences}</GradeBox>
           {row.cuatrimestralExam !== null && (
             <GradeBox label="Examen cuatrimestral">{grade(row.cuatrimestralExam)}</GradeBox>
           )}
@@ -336,13 +335,17 @@ function PeriodHeading({ number }: { number: BimesterNumber }) {
 }
 
 /** Phones: a label-left / value-right list. From sm: labeled boxes, label above value. */
-function GradeGrid({ count, children }: { count: 3 | 4; children: ReactNode }) {
+function GradeGrid({ count, children }: { count: 2 | 3 | 4; children: ReactNode }) {
   return (
     <dl
       className={cn(
         "divide-y divide-primary/10 rounded-lg bg-primary-tint px-3 sm:grid sm:gap-3 sm:divide-y-0 sm:bg-transparent sm:px-0",
         // Four columns on wide screens so boxes line up from card to card.
-        count === 4 ? "sm:grid-cols-2 lg:grid-cols-4" : "sm:grid-cols-3 lg:grid-cols-4",
+        count === 4
+          ? "sm:grid-cols-2 lg:grid-cols-4"
+          : count === 3
+            ? "sm:grid-cols-3 lg:grid-cols-4"
+            : "sm:grid-cols-2 lg:grid-cols-4",
       )}
     >
       {children}

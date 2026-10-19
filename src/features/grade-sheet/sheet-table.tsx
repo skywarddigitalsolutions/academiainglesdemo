@@ -184,7 +184,6 @@ export function GradeSheetTable({
               <>
                 <Th className="w-32">Aplicación</Th>
                 <Th className="w-40">Conducta</Th>
-                <Th className="w-28">Inasistencias</Th>
                 <Th className="w-20">Obs.</Th>
               </>
             )}
@@ -250,14 +249,13 @@ function bimesterFields({
     return [
       { key: "application", label: "Aplicación", node: <ReadOnlyValue value={values.application} hintLow /> },
       { key: "conduct", label: "Conducta", node: <ReadOnlyValue value={values.conduct} /> },
-      { key: "absences", label: "Inasistencias", node: <ReadOnlyValue value={values.absences} /> },
       {
         key: "observation",
         label: "Observación",
         node: (
           <div className="flex justify-center">
             <ObservationCell
-              cell={`${index}:3`}
+              cell={`${index}:2`}
               studentName={name}
               value={values.observation}
               readOnly
@@ -311,28 +309,12 @@ function bimesterFields({
       ),
     },
     {
-      key: "absences",
-      label: "Inasistencias",
-      node: (
-        <TextCell
-          cell={`${index}:2`}
-          inputMode="numeric"
-          placeholder="0"
-          aria-label={`Inasistencias de ${name}`}
-          value={values.absences}
-          onValueChange={(v) => onChange("absences", v)}
-          invalid={errors.absences}
-          className="mx-auto w-14"
-        />
-      ),
-    },
-    {
       key: "observation",
       label: "Observación",
       node: (
         <div className="flex justify-center">
           <ObservationCell
-            cell={`${index}:3`}
+            cell={`${index}:2`}
             studentName={name}
             value={values.observation}
             onValueChange={(v) => onChange("observation", v)}

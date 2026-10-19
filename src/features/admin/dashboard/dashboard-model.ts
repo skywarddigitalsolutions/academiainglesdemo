@@ -70,15 +70,12 @@ export type ComparisonKey =
   | "average"
   | "passRate"
   | "failRate"
-  | "attendanceRate"
-  | "absencesPerStudent"
   | "examsTaken"
   | "atRisk";
 
 /** Metrics where a lower value is the better one. */
 const LOWER_IS_BETTER: ReadonlySet<ComparisonKey> = new Set([
   "failRate",
-  "absencesPerStudent",
   "atRisk",
 ]);
 
@@ -87,8 +84,6 @@ const MIN_SPREAD: Record<ComparisonKey, number> = {
   average: 0.25,
   passRate: 2,
   failRate: 2,
-  attendanceRate: 2,
-  absencesPerStudent: 0.5,
   examsTaken: 1,
   atRisk: 1,
 };

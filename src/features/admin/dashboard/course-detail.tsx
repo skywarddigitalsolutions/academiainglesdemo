@@ -24,7 +24,7 @@ function MiniKpi({ label, value, helper }: { label: string; value: string; helpe
 function Detail({ metrics }: { metrics: CourseMetrics }) {
   return (
     <div className="flex flex-col gap-8">
-      <ul className="grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-5">
+      <ul className="grid grid-cols-2 gap-3 md:grid-cols-3">
         <MiniKpi
           label="Promedio del curso"
           value={scoreLabel(metrics.average, metrics.course.gradingType)}
@@ -39,16 +39,6 @@ function Detail({ metrics }: { metrics: CourseMetrics }) {
           value={String(metrics.failed)}
           helper={formatPercent(metrics.failRate)}
         />
-        <MiniKpi
-          label="Inasistencias"
-          value={String(metrics.absences)}
-          helper={
-            metrics.absencesPerStudent === null
-              ? undefined
-              : `${String(metrics.absencesPerStudent).replace(".", ",")} por alumno`
-          }
-        />
-        <MiniKpi label="Asistencia estimada" value={formatPercent(metrics.attendanceRate)} />
       </ul>
 
       <section>
@@ -61,7 +51,7 @@ function Detail({ metrics }: { metrics: CourseMetrics }) {
       <section id="riesgo" className="scroll-mt-20">
         <SectionHeading
           title="Alumnos con riesgo de rendir en marzo"
-          description="Según promedio, últimos bimestres, caída de notas y asistencia estimada."
+          description="Según promedio, últimos bimestres, y caída de notas."
         />
         <RiskList students={metrics.atRisk} />
       </section>

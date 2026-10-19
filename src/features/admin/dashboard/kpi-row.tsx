@@ -1,7 +1,6 @@
 import Link from "next/link";
 import {
   AlertTriangle,
-  CalendarCheck,
   CheckCircle2,
   ClipboardList,
   GraduationCap,
@@ -68,14 +67,6 @@ function kpis(school: SchoolMetrics): Kpi[] {
       href: "#riesgo",
     },
     {
-      id: "attendance",
-      icon: CalendarCheck,
-      tone: "neutral",
-      label: "Asistencia estimada",
-      value: formatPercent(school.attendanceRate),
-      helper: `${school.absences} inasistencias en total`,
-    },
-    {
       id: "exams",
       icon: ClipboardList,
       tone: "neutral",
@@ -119,7 +110,7 @@ function Tile({ kpi }: { kpi: Kpi }) {
 /** Headline figures of the whole school, each with a plain-language helper line. */
 export function KpiRow({ school }: { school: SchoolMetrics }) {
   return (
-    <ul className="grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-6">
+    <ul className="grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-5">
       {kpis(school).map((kpi) => (
         <li key={kpi.id} className="min-w-0">
           <Tile kpi={kpi} />

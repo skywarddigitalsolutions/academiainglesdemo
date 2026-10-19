@@ -182,7 +182,7 @@ const OBSERVATIONS: string[] = [
 ];
 
 const LOW_OBSERVATION =
-  "Presenta dificultades en gramática y comprensión lectora. Se recomienda acompañamiento en casa y asistencia a clases de apoyo.";
+  "Presenta dificultades en gramática y comprensión lectora. Se recomienda acompañamiento en casa y clases de apoyo.";
 
 function toConceptual(value: number): ConceptualGrade {
   if (value >= 9) return "Excelente";
@@ -238,7 +238,6 @@ function buildReportCard(
         applicationGrade: gradeFor(type, value),
         conductGrade: toConceptual(Math.min(10, value + 1)),
         observation: isLow ? LOW_OBSERVATION : OBSERVATIONS[(index + n) % OBSERVATIONS.length],
-        absences: (index * 3 + n) % 4,
       },
       type,
     );

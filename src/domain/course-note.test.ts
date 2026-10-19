@@ -26,7 +26,7 @@ describe("course note", () => {
         year: 2026,
         authorId: "u-admin",
         authorName: "María Elena Gutiérrez",
-        text: "  Revisar las inasistencias.  ",
+        text: "  Revisar las observaciones.  ",
         period: 3,
         now: NOW,
       }),
@@ -37,7 +37,7 @@ describe("course note", () => {
       authorId: "u-admin",
       authorName: "María Elena Gutiérrez",
       createdAt: NOW.toISOString(),
-      text: "Revisar las inasistencias.",
+      text: "Revisar las observaciones.",
       period: 3,
     });
   });

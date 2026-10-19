@@ -28,16 +28,15 @@ describe("grade sheet model", () => {
     const filled = updateBimester(
       card(),
       1,
-      { applicationGrade: 7.5, conductGrade: "Bien", absences: 2, observation: "Ok" },
+      { applicationGrade: 7.5, conductGrade: "Bien", observation: "Ok" },
       "numeric",
     );
     expect(bimesterValues(filled, 1)).toEqual({
       application: "7,5",
       conduct: "Bien",
-      absences: "2",
       observation: "Ok",
     });
-    expect(bimesterValues(card(), 1).absences).toBe("");
+    expect(bimesterValues(card(), 1)).not.toHaveProperty("absences");
   });
 
   it("parses grades written with a decimal comma", () => {
@@ -51,22 +50,21 @@ describe("grade sheet model", () => {
   it("flags invalid cells without throwing", () => {
     const errors = validateRow(
       1,
-      { application: "12", conduct: "", absences: "-1", observation: "" },
+      { application: "12", conduct: "", observation: "" },
       "numeric",
     );
-    expect(errors).toEqual({ application: true, absences: true });
+    expect(errors).toEqual({ application: true });
   });
 
   it("builds a bimester patch from text values", () => {
     expect(
       toBimesterPatch(
-        { application: "8", conduct: "Muy bien", absences: "", observation: " Bien " },
+        { application: "8", conduct: "Muy bien", observation: " Bien " },
         "numeric",
       ),
     ).toEqual({
       applicationGrade: 8,
       conductGrade: "Muy bien",
-      absences: 0,
       observation: "Bien",
     });
   });
@@ -107,10 +105,10 @@ describe("grade sheet model", () => {
 
   it("knows when a row can be published", () => {
     expect(
-      isRowComplete(1, { application: "8", conduct: "Bien", absences: "", observation: "" }),
+      isRowComplete(1, { application: "8", conduct: "Bien", observation: "" }),
     ).toBe(true);
     expect(
-      isRowComplete(1, { application: "8", conduct: "", absences: "", observation: "" }),
+      isRowComplete(1, { application: "8", conduct: "", observation: "" }),
     ).toBe(false);
     expect(
       isRowComplete("closing", {
@@ -124,7 +122,7 @@ describe("grade sheet model", () => {
   });
 
   it("tracks only the cells that differ from the stored values", () => {
-    const base = { application: "8", conduct: "Bien", absences: "0", observation: "" };
+    const base = { application: "8", conduct: "Bien", observation: "" };
     const edited = editRowDraft(base, {}, "application", "9");
     expect(edited).toEqual({ application: "9" });
     expect(editRowDraft(base, edited, "application", "8")).toEqual({});
@@ -151,10 +149,10 @@ describe("grade sheet model", () => {
     expect(
       toPeriodPatch(
         2,
-        { application: "7", conduct: "", absences: "3", observation: "" },
+        { application: "7", conduct: "", observation: "" },
         { gradingType: "numeric", nextCourseName: "6° Grado A" },
       ),
-    ).toEqual({ applicationGrade: 7, conductGrade: null, absences: 3, observation: "" });
+    ).toEqual({ applicationGrade: 7, conductGrade: null, observation: "" });
     expect(
       toPeriodPatch(
         "closing",

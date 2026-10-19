@@ -1,7 +1,6 @@
 import type { Course } from "@/domain/course";
 import type { Exam } from "@/domain/exam";
 import {
-  attendanceRate,
   averageOf,
   compareRisk,
   gradeScore,
@@ -46,10 +45,6 @@ export interface CourseMetrics {
   /** Percentages of the graded students, one decimal (null = none graded). */
   passRate: number | null;
   failRate: number | null;
-  absences: number;
-  absencesPerStudent: number | null;
-  /** Estimated percentage, null without data. */
-  attendanceRate: number | null;
   examsTaken: number;
   examsUpcoming: number;
   /** Mean of the per-exam averages (conceptual grades via their equivalence). */
@@ -72,8 +67,6 @@ export interface SchoolMetrics {
   failRate: number | null;
   atRiskHigh: number;
   atRiskMedium: number;
-  absences: number;
-  attendanceRate: number | null;
   examsTaken: number;
   examsUpcoming: number;
 }
@@ -106,8 +99,6 @@ function summarize(list: StudentMetrics[]) {
   const performances = list.map((s) => s.performance);
   const passed = performances.filter((p) => p.standing === "passed").length;
   const failed = performances.filter((p) => p.standing === "failed").length;
-  const absences = performances.reduce((sum, p) => sum + p.absences.total, 0);
-  const attendanceBase = performances.reduce((sum, p) => sum + p.attendanceBase, 0);
   return {
     studentCount: list.length,
     average: averageOf(
@@ -118,8 +109,6 @@ function summarize(list: StudentMetrics[]) {
     ungraded: list.length - passed - failed,
     passRate: percentOf(passed, passed + failed),
     failRate: percentOf(failed, passed + failed),
-    absences,
-    attendanceRate: attendanceRate(absences, attendanceBase),
   };
 }
 
@@ -147,10 +136,6 @@ function buildCourse(
     teachers,
     ...summary,
     bimesterAverages: bimesterAverages(sorted),
-    absencesPerStudent:
-      summary.studentCount === 0
-        ? null
-        : Math.round((summary.absences / summary.studentCount) * 10) / 10,
     examsTaken: exams.filter((e) => e.date <= day).length,
     examsUpcoming: exams.filter((e) => e.date > day).length,
     examsAverage: averageOf(
@@ -174,13 +159,12 @@ export async function loadDashboard(deps: UseCaseDeps): Promise<DashboardMetrics
     users.listByRole("teacher"),
     exams.listByYear(deps.year),
   ]);
-  const scheduleOf = new Map(allCourses.map((c) => [c.id, c.schedule]));
   const metrics: StudentMetrics[] = await Promise.all(
     allStudents.map(async (student) => {
       const card = await loadOrCreateReportCard(deps, student);
       return {
         student,
-        performance: studentPerformance(card, scheduleOf.get(student.courseId) ?? ""),
+        performance: studentPerformance(card),
       };
     }),
   );

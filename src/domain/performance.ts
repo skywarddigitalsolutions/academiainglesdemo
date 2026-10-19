@@ -4,8 +4,7 @@ import { BIMESTER_NUMBERS, type BimesterNumber, type ReportCard } from "./report
 /*
  * Academic performance derived from a report card. Pure and explainable:
  * every risk flag carries the reasons Dirección can read. Drafts count too
- * (Dirección sees work in progress). There is no attendance log, so
- * attendance is estimated from the course schedule and the recorded absences.
+ * (Dirección sees work in progress).
  */
 
 /** Internal ordering score of the conceptual scale (never shown as a grade). */
@@ -19,9 +18,6 @@ export const CONCEPTUAL_SCORE: Record<ConceptualGrade, number> = {
   Desaprobado: 4,
 };
 
-export const WEEKS_PER_BIMESTER = 8;
-/** Estimated attendance below this percentage is a medium March risk. */
-export const MIN_ATTENDANCE = 85;
 /** A drop of this percentage or more (with a low average) is a medium March risk. */
 export const SHARP_DROP_PCT = 10;
 const LOW_AVERAGE = 7;
@@ -53,11 +49,6 @@ export interface StudentPerformance {
   changePct: number | null;
   trend: Trend | null;
   standing: Standing;
-  absences: { total: number; byBimester: number[] };
-  /** Estimated classes behind `attendance` (0 when there is no data). */
-  attendanceBase: number;
-  /** Estimated percentage 0-100, null when there is no data. */
-  attendance: number | null;
   risk: MarchRisk;
 }
 
@@ -89,37 +80,14 @@ export function percentChange(
   return round(((latest - previous) / previous) * 100, 1);
 }
 
-const WEEKDAY_NAMES = ["lunes", "martes", "miercoles", "jueves", "viernes", "sabado"];
-
-function normalize(text: string): string {
-  return text
-    .toLowerCase()
-    .normalize("NFD")
-    .replace(/[̀-ͯ]/g, "");
-}
-
-/** Estimated classes in a bimester: weekdays named in the schedule x 8 weeks. */
-export function classesPerBimester(schedule: string): number {
-  const text = normalize(schedule);
-  const days = WEEKDAY_NAMES.filter((day) => text.includes(day)).length;
-  return Math.max(1, days) * WEEKS_PER_BIMESTER;
-}
-
-export function attendanceRate(absences: number, classes: number): number | null {
-  if (classes <= 0) return null;
-  const rate = (1 - absences / classes) * 100;
-  return round(Math.min(100, Math.max(0, rate)), 1);
-}
-
 function evaluateRisk(params: {
   card: ReportCard;
   average: number | null;
   latest: GradedBimester | null;
   previous: GradedBimester | null;
   changePct: number | null;
-  attendance: number | null;
 }): MarchRisk {
-  const { card, average, latest, previous, changePct, attendance } = params;
+  const { card, average, latest, previous, changePct } = params;
   const high: string[] = [];
   const medium: string[] = [];
 
@@ -144,15 +112,12 @@ function evaluateRisk(params: {
   ) {
     medium.push(`Bajó ${formatDecimal(Math.abs(changePct))}% respecto del bimestre anterior`);
   }
-  if (attendance !== null && attendance < MIN_ATTENDANCE) {
-    medium.push(`Asistencia estimada por debajo del ${MIN_ATTENDANCE}%`);
-  }
 
   const level: RiskLevel = high.length > 0 ? "high" : medium.length > 0 ? "medium" : "none";
   return { level, reasons: [...high, ...medium] };
 }
 
-export function studentPerformance(card: ReportCard, schedule: string): StudentPerformance {
+export function studentPerformance(card: ReportCard): StudentPerformance {
   const bimesters = BIMESTER_NUMBERS.map(
     (n) => card.bimesters.find((b) => b.number === n) ?? null,
   );
@@ -177,12 +142,6 @@ export function studentPerformance(card: ReportCard, schedule: string): StudentP
   const standing: Standing =
     average === null ? "ungraded" : average >= PASS_MARK ? "passed" : "failed";
 
-  const byBimester = bimesters.map((b) => b?.absences ?? 0);
-  const total = byBimester.reduce((sum, a) => sum + a, 0);
-  const withData = byBimester.filter((a, i) => scores[i] !== null || a > 0).length;
-  const attendanceBase = classesPerBimester(schedule) * withData;
-  const attendance = attendanceRate(total, attendanceBase);
-
   return {
     scores,
     average,
@@ -192,10 +151,7 @@ export function studentPerformance(card: ReportCard, schedule: string): StudentP
     changePct,
     trend,
     standing,
-    absences: { total, byBimester },
-    attendanceBase,
-    attendance,
-    risk: evaluateRisk({ card, average, latest, previous, changePct, attendance }),
+    risk: evaluateRisk({ card, average, latest, previous, changePct }),
   };
 }
 

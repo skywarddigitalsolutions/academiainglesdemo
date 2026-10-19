@@ -3,7 +3,6 @@ import { LogoCrest } from "@/components/brand/logo";
 const ROWS = [
   { label: "Nota de aplicación", values: ["8", "9", "8", "—"] },
   { label: "Conducta", values: ["MB", "E", "MB", "—"] },
-  { label: "Inasistencias", values: ["1", "0", "2", "—"] },
 ];
 
 /**

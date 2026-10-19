@@ -22,7 +22,6 @@ export interface Bimester {
   applicationGrade: GradeValue | null;
   conductGrade: ConceptualGrade | null;
   observation: string;
-  absences: number;
   /** When the teacher published it to families (null = draft or empty). */
   publishedAt: string | null;
   /** When a family marked it as read. */
@@ -66,7 +65,7 @@ export interface ReportCard {
 }
 
 export type BimesterPatch = Partial<
-  Pick<Bimester, "applicationGrade" | "conductGrade" | "observation" | "absences">
+  Pick<Bimester, "applicationGrade" | "conductGrade" | "observation">
 >;
 
 export type ClosingPatch = Partial<Omit<Closing, "publishedAt">>;
@@ -77,7 +76,6 @@ function emptyBimester(number: BimesterNumber): Bimester {
     applicationGrade: null,
     conductGrade: null,
     observation: "",
-    absences: 0,
     publishedAt: null,
     readAt: null,
   };
@@ -114,8 +112,7 @@ function hasBimesterContent(bimester: Bimester): boolean {
   return (
     bimester.applicationGrade !== null ||
     bimester.conductGrade !== null ||
-    bimester.observation.trim() !== "" ||
-    bimester.absences > 0
+    bimester.observation.trim() !== ""
   );
 }
 
@@ -189,15 +186,6 @@ export function updateBimester(
     throw new DomainError(
       "invalid-conduct-grade",
       "La conducta debe ser una calificación conceptual.",
-    );
-  }
-  if (
-    patch.absences !== undefined &&
-    (!Number.isInteger(patch.absences) || patch.absences < 0)
-  ) {
-    throw new DomainError(
-      "invalid-absences",
-      "Las inasistencias deben ser un número entero mayor o igual a 0.",
     );
   }
   return replaceBimester(card, number, (b) => ({ ...b, ...patch }));

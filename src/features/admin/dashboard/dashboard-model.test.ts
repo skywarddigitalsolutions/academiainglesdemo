@@ -23,8 +23,6 @@ function course(id: string, over: Record<string, unknown> = {}): CourseMetrics {
     ungraded: 2,
     passRate: 75,
     failRate: 25,
-    absencesPerStudent: 2,
-    attendanceRate: 90,
     examsTaken: 2,
     atRisk: [],
     ...over,
@@ -109,8 +107,8 @@ describe("rankCourses", () => {
     expect(rankCourses(ties, "average")).toEqual({ best: [], worst: [] });
   });
   it("marks nothing when the spread is too small to matter", () => {
-    const close = [course("a", { attendanceRate: 90.8 }), course("b", { attendanceRate: 90.6 })];
-    expect(rankCourses(close, "attendanceRate")).toEqual({ best: [], worst: [] });
+    const close = [course("a", { passRate: 90.8 }), course("b", { passRate: 90.6 })];
+    expect(rankCourses(close, "passRate")).toEqual({ best: [], worst: [] });
     const near = [course("a", { average: 8.2 }), course("b", { average: 8.1 })];
     expect(rankCourses(near, "average")).toEqual({ best: [], worst: [] });
   });

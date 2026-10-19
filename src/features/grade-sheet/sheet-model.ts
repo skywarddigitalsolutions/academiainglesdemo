@@ -27,7 +27,6 @@ import {
 export interface BimesterRowValues {
   application: string;
   conduct: string;
-  absences: string;
   observation: string;
 }
 
@@ -53,7 +52,6 @@ export function bimesterValues(card: ReportCard, n: BimesterNumber): BimesterRow
   return {
     application: gradeText(b.applicationGrade),
     conduct: b.conductGrade ?? "",
-    absences: b.absences > 0 || b.publishedAt || b.applicationGrade !== null ? String(b.absences) : "",
     observation: b.observation,
   };
 }
@@ -86,12 +84,6 @@ export function parseGradeText(text: string, type: GradingType): ParsedGrade {
   return isValidGrade("numeric", value) ? { ok: true, value } : { ok: false };
 }
 
-function parseAbsences(text: string): number | null {
-  const trimmed = text.trim();
-  if (trimmed === "") return 0;
-  return /^\d{1,3}$/.test(trimmed) ? Number(trimmed) : null;
-}
-
 export function validateRow(
   period: ReportPeriod,
   values: RowValues,
@@ -106,7 +98,6 @@ export function validateRow(
   }
   const v = values as BimesterRowValues;
   if (!parseGradeText(v.application, type).ok) errors.application = true;
-  if (parseAbsences(v.absences) === null) errors.absences = true;
   return errors;
 }
 
@@ -119,7 +110,6 @@ export function toBimesterPatch(values: BimesterRowValues, type: GradingType): B
   return {
     applicationGrade: grade(values.application, type),
     conductGrade: isConceptualGrade(values.conduct) ? values.conduct : null,
-    absences: parseAbsences(values.absences) ?? 0,
     observation: values.observation.trim(),
   };
 }

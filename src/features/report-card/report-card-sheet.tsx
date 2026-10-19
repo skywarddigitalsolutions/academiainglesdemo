@@ -82,7 +82,6 @@ export function ReportCardSheet({
   const rows: { label: string; render: (b: Bimester) => ReactNode }[] = [
     { label: "Nota de aplicación", render: (b) => <GradeText value={b.applicationGrade} /> },
     { label: "Conducta", render: (b) => <GradeText value={b.conductGrade} /> },
-    { label: "Inasistencias", render: (b) => b.absences },
   ];
 
   return (

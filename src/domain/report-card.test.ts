@@ -32,7 +32,7 @@ function filledCard(): ReportCard {
   return updateBimester(
     newCard(),
     1,
-    { applicationGrade: 8, conductGrade: "Muy bien", absences: 2 },
+    { applicationGrade: 8, conductGrade: "Muy bien" },
     "numeric",
   );
 }
@@ -49,7 +49,7 @@ describe("createEmptyReportCard", () => {
     for (const b of card.bimesters) {
       expect(b.applicationGrade).toBeNull();
       expect(b.conductGrade).toBeNull();
-      expect(b.absences).toBe(0);
+      expect(b).not.toHaveProperty("absences");
       expect(b.publishedAt).toBeNull();
       expect(b.readAt).toBeNull();
       expect(getBimesterStatus(b)).toBe("empty");
@@ -103,15 +103,6 @@ describe("updateBimester", () => {
         { conductGrade: 8 as unknown as "Bien" },
         "numeric",
       ),
-    ).toThrow(DomainError);
-  });
-
-  it("rejects negative or fractional absences", () => {
-    expect(() =>
-      updateBimester(newCard(), 1, { absences: -1 }, "numeric"),
-    ).toThrow(DomainError);
-    expect(() =>
-      updateBimester(newCard(), 1, { absences: 1.5 }, "numeric"),
     ).toThrow(DomainError);
   });
 
