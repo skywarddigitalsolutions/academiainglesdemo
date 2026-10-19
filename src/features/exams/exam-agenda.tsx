@@ -17,6 +17,7 @@ import { StatusBadge } from "@/components/ui/status-badge";
 import { examTypeLabel, splitAgenda } from "@/domain/exam";
 import { bimesterLabel, formatDayShort } from "@/lib/format";
 import { cn } from "@/lib/utils";
+import { ExamCalendar } from "./exam-calendar";
 import { examStatusBadge, formatStatsSummary, relativeDayLabel } from "./exam-model";
 
 const ALL = "all";
@@ -30,12 +31,15 @@ export function ExamAgendaView({
   hrefFor,
   renderActions,
   emptyAction,
+  calendar,
 }: {
   agenda: ExamAgenda;
   hrefFor: (item: ExamListItem) => string;
   /** Row actions (e.g. edit / delete for the teacher). */
   renderActions?: (item: ExamListItem) => ReactNode;
   emptyAction?: ReactNode;
+  /** Shows a month calendar of the filtered exams above the list. */
+  calendar?: { title?: string; description?: string };
 }) {
   const [courseId, setCourseId] = useState(ALL);
   const filtered = agenda.items.filter((i) => courseId === ALL || i.course.id === courseId);
@@ -65,6 +69,17 @@ export function ExamAgendaView({
             </SelectContent>
           </Select>
         </div>
+      )}
+
+      {calendar && (
+        <ExamCalendar
+          title={calendar.title}
+          description={calendar.description}
+          items={filtered}
+          courses={agenda.courses}
+          today={agenda.today}
+          hrefFor={hrefFor}
+        />
       )}
 
       {filtered.length === 0 ? (

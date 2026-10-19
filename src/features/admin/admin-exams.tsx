@@ -20,7 +20,14 @@ export function AdminExamsContainer() {
       {loading && <LoadingState />}
       {error && <ErrorState message={error} />}
       {data && (
-        <ExamAgendaView agenda={data} hrefFor={(item) => `/admin/exams/${item.exam.id}`} />
+        <ExamAgendaView
+          agenda={data}
+          hrefFor={(item) => `/admin/exams/${item.exam.id}`}
+          calendar={{
+            title: "Calendario de exámenes",
+            description: "Muestra los exámenes del curso elegido.",
+          }}
+        />
       )}
     </>
   );
