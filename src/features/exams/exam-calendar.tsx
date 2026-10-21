@@ -79,8 +79,8 @@ type Entry<T extends CalendarExam> =
 
 /**
  * Presentational: month view of exams, colored by course, and (for Dirección)
- * teacher absences. A grid from md up, a list of days with something on them
- * on phones.
+ * teacher absences. A grid with chips from md up; on phones a compact grid with
+ * dots per day, followed by the tapped day or every day with something on it.
  */
 export function ExamCalendar<T extends CalendarExam>({
   items,
@@ -108,7 +108,13 @@ export function ExamCalendar<T extends CalendarExam>({
   /** Asks to remove an absence; the caller confirms. */
   onDeleteAbsence?: (item: AbsenceItem) => void;
 }) {
-  const [month, setMonth] = useState(() => initialMonth(items, today));
+  const [month, setMonthState] = useState(() => initialMonth(items, today));
+  /** Phones: the tapped day, whose entries replace the month list. */
+  const [selectedDay, setSelectedDay] = useState<string | null>(null);
+  const setMonth = (next: string) => {
+    setMonthState(next);
+    setSelectedDay(null);
+  };
   const colorOf = courseColors(courses);
   const inMonth = itemsInMonth(items, month);
   const byDay = itemsByDay(inMonth);
@@ -167,7 +173,7 @@ export function ExamCalendar<T extends CalendarExam>({
               onClick={() => setMonth(shiftMonth(month, -1))}
             >
               <ChevronLeft aria-hidden />
-              Mes anterior
+              <span className="sr-only sm:not-sr-only">Mes anterior</span>
             </Button>
             <Button
               variant="outline"
@@ -181,7 +187,7 @@ export function ExamCalendar<T extends CalendarExam>({
               className="h-11 px-4 text-[15px]"
               onClick={() => setMonth(shiftMonth(month, 1))}
             >
-              Mes siguiente
+              <span className="sr-only sm:not-sr-only">Mes siguiente</span>
               <ChevronRight aria-hidden />
             </Button>
           </div>
@@ -288,9 +294,86 @@ export function ExamCalendar<T extends CalendarExam>({
           </p>
         )}
 
-        {/* Phones: only the days with something on them */}
+        {/* Phones: compact month (dots per day), then the chosen day or the whole month listed */}
         <div className="mt-4 md:hidden">
-          {daysWithEntries.length === 0 ? (
+          <div
+            role="grid"
+            aria-label={`Calendario de ${monthTitle(month)}`}
+            className="overflow-hidden rounded-lg border border-border"
+          >
+            <div role="row" className="grid grid-cols-7 bg-primary-tint">
+              {WEEKDAY_HEADERS.map((name) => (
+                <div
+                  key={name}
+                  role="columnheader"
+                  className="py-1.5 text-center text-xs font-semibold text-navy/80 uppercase"
+                >
+                  {name.slice(0, 2)}
+                </div>
+              ))}
+            </div>
+            {weeks.map((week) => (
+              <div key={week[0].iso} role="row" className="grid grid-cols-7 border-t border-border">
+                {week.map((day) => {
+                  const entries = entriesOf(day.iso);
+                  const selected = selectedDay === day.iso;
+                  return (
+                    <div key={day.iso} role="gridcell" className="min-w-0">
+                      <button
+                        type="button"
+                        disabled={!day.inMonth}
+                        aria-pressed={selected}
+                        aria-label={`${formatDay(day.iso)}${entries.length > 0 ? `, ${entries.length} ${entries.length === 1 ? "evento" : "eventos"}` : ""}`}
+                        onClick={() => setSelectedDay(selected ? null : day.iso)}
+                        className={cn(
+                          "flex h-12 w-full flex-col items-center justify-center gap-1 text-[15px] font-semibold tabular-nums focus-visible:ring-2 focus-visible:ring-primary/50 focus-visible:outline-none focus-visible:ring-inset",
+                          day.isWeekend ? "text-muted-foreground" : "text-foreground",
+                          !day.inMonth && "opacity-30",
+                          day.isToday && "bg-primary-tint ring-2 ring-primary ring-inset",
+                          selected && "bg-primary text-primary-foreground",
+                        )}
+                      >
+                        {day.day}
+                        <span className="flex h-1.5 gap-0.5" aria-hidden>
+                          {entries.slice(0, 3).map((entry) => (
+                            <span
+                              key={entry.key}
+                              className={cn(
+                                "size-1.5 rounded-full",
+                                entry.kind === "absence"
+                                  ? "bg-slate-400"
+                                  : colorOf(entry.item.course.id).solid,
+                                selected && "ring-1 ring-primary-foreground",
+                              )}
+                            />
+                          ))}
+                        </span>
+                      </button>
+                    </div>
+                  );
+                })}
+              </div>
+            ))}
+          </div>
+          {selectedDay && (
+            <div className="mt-3 flex items-center justify-between gap-2">
+              <p className="text-[15px] font-semibold text-navy">{formatDayShort(selectedDay)}</p>
+              <Button
+                variant="outline"
+                className="h-10 px-3 text-[15px]"
+                onClick={() => setSelectedDay(null)}
+              >
+                Ver todo el mes
+              </Button>
+            </div>
+          )}
+        </div>
+        <div className="mt-4 md:hidden">
+          {selectedDay && entriesOf(selectedDay).length === 0 ? (
+            <p className="text-[15px] text-muted-foreground">
+              {absences ? "No hay exámenes ni ausencias este día." : "No hay exámenes este día."}
+            </p>
+          ) : daysWithEntries.length === 0 ? (
             <EmptyState
               icon={CalendarDays}
               title={
@@ -300,7 +383,7 @@ export function ExamCalendar<T extends CalendarExam>({
             />
           ) : (
             <ul className="flex flex-col gap-4">
-              {daysWithEntries.map((iso) => (
+              {(selectedDay ? [selectedDay] : daysWithEntries).map((iso) => (
                 <li key={iso}>
                   <h4 className="mb-2 text-[15px] font-semibold text-navy">{formatDayShort(iso)}</h4>
                   <ul className="flex flex-col gap-2">
